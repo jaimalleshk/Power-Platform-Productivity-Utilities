@@ -14,47 +14,81 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
 {
     class Program
     {
+        private static void SafeSetConsoleTitle(string title)
+        {
+            try { Console.Title = title; } catch { }
+        }
+
+        private static void SafeSetForegroundColor(ConsoleColor color)
+        {
+            try { Console.ForegroundColor = color; } catch { }
+        }
+
+        private static void SafeResetConsoleColor()
+        {
+            try { Console.ResetColor(); } catch { }
+        }
+
         static async Task<int> Main(string[] args)
         {
-            Console.Title = "Power Platform Productivity Suite";
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine(@"
+            try
+            {
+                SafeSetConsoleTitle("Power Platform Productivity Suite");
+                SafeSetForegroundColor(ConsoleColor.Cyan);
+                Console.WriteLine(@"
 ╔════════════════════════════════════════════════════════════════╗
 ║             POWER PLATFORM PRODUCTIVITY ENGINE CLI             ║
 ║               Libraries & Console Orchestrator                 ║
 ╚════════════════════════════════════════════════════════════════╝");
-            Console.ResetColor();
-
-            int commandIndex = 0;
-            if (args.Length > 0 && (args[0] == "--" || args[0] == "-") && args.Length > 1)
+                SafeResetConsoleColor();
+            }
+            catch
             {
-                commandIndex = 1;
+                // Ignore console layout issues on startup
             }
 
-            if (args.Length == 0 || args[commandIndex].TrimStart('-', '—').ToLower() == "help" || args[commandIndex] == "-h" || args[commandIndex] == "--help")
+            try
             {
+                int commandIndex = 0;
+                if (args != null && args.Length > 0 && (args[0] == "--" || args[0] == "-") && args.Length > 1)
+                {
+                    commandIndex = 1;
+                }
+
+                if (args == null || args.Length == 0 || args[commandIndex].TrimStart('-', '—').ToLower() == "help" || args[commandIndex] == "-h" || args[commandIndex] == "--help")
+                {
+                    PrintHelp();
+                    return 0;
+                }
+
+                string command = args[commandIndex].TrimStart('-', '—').ToLower();
+                int skipCount = commandIndex + 1;
+                string[] subcommandArgs = new string[args.Length - skipCount];
+                Array.Copy(args, skipCount, subcommandArgs, 0, args.Length - skipCount);
+
+                switch (command)
+                {
+                    case "validate":
+                        return await RunValidateAsync(subcommandArgs).ConfigureAwait(false);
+                    case "distill":
+                        return await RunDistillAsync(subcommandArgs).ConfigureAwait(false);
+                    case "repair":
+                        return await RunRepairAsync(subcommandArgs).ConfigureAwait(false);
+                    default:
+                        SafeSetForegroundColor(ConsoleColor.Red);
+                        Console.WriteLine($"[ERROR] Unknown command '{args[commandIndex]}'. Use 'help' to see list of valid commands.");
+                        SafeResetConsoleColor();
+                        PrintHelp();
+                        return 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeSetForegroundColor(ConsoleColor.Red);
+                Console.WriteLine($"\n[ERROR] An unexpected startup error occurred: {ex.Message}");
+                SafeResetConsoleColor();
                 PrintHelp();
-                return 0;
-            }
-
-            string command = args[commandIndex].TrimStart('-', '—').ToLower();
-            int skipCount = commandIndex + 1;
-            string[] subcommandArgs = new string[args.Length - skipCount];
-            Array.Copy(args, skipCount, subcommandArgs, 0, args.Length - skipCount);
-
-            switch (command)
-            {
-                case "validate":
-                    return await RunValidateAsync(subcommandArgs).ConfigureAwait(false);
-                case "distill":
-                    return await RunDistillAsync(subcommandArgs).ConfigureAwait(false);
-                case "repair":
-                    return await RunRepairAsync(subcommandArgs).ConfigureAwait(false);
-                default:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"[ERROR] Unknown command '{args[commandIndex]}'. Use 'help' to see list of valid commands.");
-                    Console.ResetColor();
-                    return 1;
+                return 1;
             }
         }
 
