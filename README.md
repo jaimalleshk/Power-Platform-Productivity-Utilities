@@ -8,7 +8,7 @@ A modular, resilient, and extensible suite of productivity utilities for Microso
 
 By automating the validation and repair steps of Dataverse solutions, this engine significantly reduces manual developer overhead and deployment downtime:
 
-### 🔍 Solution Deep Validator
+### 🔍 Solution Deep Validator - Before deployment attempts to target environment and waiting for hours!
 * **Eliminate Log Diagnostics (Saves ~1–2 hours per failure)**: Pinpoints the exact missing tables, columns, option sets, or web resources in seconds, replacing generic platform import failure screens.
 * **Proactive Conflict Avoidance**: Detects schema mismatches (e.g. data type mismatches, string length reductions) and publisher conflicts *prior* to import, preventing accidental data truncation on target environments.
 * **Verify Customization Locks**: Instantly checks target environments for managed property locks (`IsCustomizable=false`), ensuring your import is verified before deployment begins.
