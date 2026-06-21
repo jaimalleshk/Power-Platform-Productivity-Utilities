@@ -60,15 +60,19 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 }
             }
 
-            // 2. Interactive Auth Flow
-            if (profile.UseInteractiveAuth)
+            // 2. Confidential Client Flow (Client Secret or Certificate)
+            if (!string.IsNullOrWhiteSpace(profile.ClientId) && (!string.IsNullOrWhiteSpace(profile.ClientSecret) || !string.IsNullOrWhiteSpace(profile.ClientCertificateThumbprint)))
             {
-                string appKey = $"Interactive:{profile.TenantId}:{profile.ClientId}";
-                var app = PublicApps.GetOrAdd(appKey, _ =>
+                string appKey = $"Confidential:{profile.TenantId}:{profile.ClientId}";
+                var app = ConfidentialApps.GetOrAdd(appKey, _ =>
                 {
-                    var builder = PublicClientApplicationBuilder.Create(profile.ClientId)
-                        .WithRedirectUri("http://localhost");
+                    var builder = ConfidentialClientApplicationBuilder.Create(profile.ClientId);
 
+                    if (!string.IsNullOrWhiteSpace(profile.ClientSecret))
+                    {
+                        builder.WithClientSecret(profile.ClientSecret);
+                    }
+                    
                     if (!string.IsNullOrWhiteSpace(profile.TenantId))
                     {
                         builder.WithTenantId(profile.TenantId);
@@ -77,21 +81,10 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                     return builder.Build();
                 });
 
-                var accounts = await app.GetAccountsAsync().ConfigureAwait(false);
-                try
-                {
-                    var silentResult = await app.AcquireTokenSilent(scopes, accounts.FirstOrDefault())
-                        .ExecuteAsync()
-                        .ConfigureAwait(false);
-                    return silentResult.AccessToken;
-                }
-                catch (MsalUiRequiredException)
-                {
-                    var interactiveResult = await app.AcquireTokenInteractive(scopes)
-                        .ExecuteAsync()
-                        .ConfigureAwait(false);
-                    return interactiveResult.AccessToken;
-                }
+                var clientResult = await app.AcquireTokenForClient(scopes)
+                    .ExecuteAsync()
+                    .ConfigureAwait(false);
+                return clientResult.AccessToken;
             }
 
             // 3. Username/Password Auth Flow
@@ -134,20 +127,15 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 }
             }
 
-            // 4. Confidential Client Flow (Client Secret or Certificate)
-            if (!string.IsNullOrWhiteSpace(profile.ClientId) && (!string.IsNullOrWhiteSpace(profile.ClientSecret) || !string.IsNullOrWhiteSpace(profile.ClientCertificateThumbprint)))
+            // 4. Interactive Auth Flow
+            if (profile.UseInteractiveAuth)
             {
-                string appKey = $"Confidential:{profile.TenantId}:{profile.ClientId}";
-                var app = ConfidentialApps.GetOrAdd(appKey, _ =>
+                string appKey = $"Interactive:{profile.TenantId}:{profile.ClientId}";
+                var app = PublicApps.GetOrAdd(appKey, _ =>
                 {
-                    var builder = ConfidentialClientApplicationBuilder.Create(profile.ClientId);
+                    var builder = PublicClientApplicationBuilder.Create(profile.ClientId)
+                        .WithRedirectUri("http://localhost");
 
-                    if (!string.IsNullOrWhiteSpace(profile.ClientSecret))
-                    {
-                        builder.WithClientSecret(profile.ClientSecret);
-                    }
-                    // Certificate auth is supported if needed, but client secret is default confidential app client here.
-                    
                     if (!string.IsNullOrWhiteSpace(profile.TenantId))
                     {
                         builder.WithTenantId(profile.TenantId);
@@ -156,10 +144,21 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                     return builder.Build();
                 });
 
-                var clientResult = await app.AcquireTokenForClient(scopes)
-                    .ExecuteAsync()
-                    .ConfigureAwait(false);
-                return clientResult.AccessToken;
+                var accounts = await app.GetAccountsAsync().ConfigureAwait(false);
+                try
+                {
+                    var silentResult = await app.AcquireTokenSilent(scopes, accounts.FirstOrDefault())
+                        .ExecuteAsync()
+                        .ConfigureAwait(false);
+                    return silentResult.AccessToken;
+                }
+                catch (MsalUiRequiredException)
+                {
+                    var interactiveResult = await app.AcquireTokenInteractive(scopes)
+                        .ExecuteAsync()
+                        .ConfigureAwait(false);
+                    return interactiveResult.AccessToken;
+                }
             }
 
             throw new InvalidOperationException("No valid authentication credentials were provided in the connection profile.");

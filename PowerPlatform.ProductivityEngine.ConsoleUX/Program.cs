@@ -141,7 +141,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string zipPath = "";
             string envUrl = "https://simulation-env.crm.dynamics.com";
             string connString = "";
-            bool interactive = false;
+            bool interactive = true;
             bool simulate = false;
             string outJson = "validation_report.json";
             string outHtml = "validation_report.html";
@@ -149,6 +149,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string srcConnstr = "";
             string solutionName = "";
             string validationLog = "";
+            string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -169,7 +170,18 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                         break;
                     case "--interactive":
                     case "-interactive":
-                        interactive = true;
+                        if (i + 1 < args.Length && (args[i + 1].ToLower() == "false" || args[i + 1].ToLower() == "true"))
+                        {
+                            interactive = bool.Parse(args[++i]);
+                        }
+                        else
+                        {
+                            interactive = true;
+                        }
+                        break;
+                    case "--client-id":
+                    case "-client-id":
+                        if (i + 1 < args.Length) clientId = args[++i];
                         break;
                     case "--simulate":
                     case "-simulate":
@@ -216,6 +228,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 EnvironmentUrl = envUrl,
                 ConnectionString = connString,
                 UseInteractiveAuth = interactive,
+                ClientId = clientId,
                 TimeoutSeconds = 60
             };
 
@@ -227,6 +240,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     EnvironmentUrl = string.IsNullOrEmpty(srcUrl) ? "https://source-env.crm.dynamics.com" : srcUrl,
                     ConnectionString = srcConnstr,
                     UseInteractiveAuth = interactive,
+                    ClientId = clientId,
                     TimeoutSeconds = 60
                 };
             }
@@ -275,6 +289,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string outZipPath = "";
             bool simulate = false;
             string outDiff = "distill_diff.json";
+            bool interactive = true;
+            string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -304,6 +320,21 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     case "--out-diff":
                     case "-out-diff":
                         if (i + 1 < args.Length) outDiff = args[++i];
+                        break;
+                    case "--client-id":
+                    case "-client-id":
+                        if (i + 1 < args.Length) clientId = args[++i];
+                        break;
+                    case "--interactive":
+                    case "-interactive":
+                        if (i + 1 < args.Length && (args[i + 1].ToLower() == "false" || args[i + 1].ToLower() == "true"))
+                        {
+                            interactive = bool.Parse(args[++i]);
+                        }
+                        else
+                        {
+                            interactive = true;
+                        }
                         break;
                 }
             }
@@ -347,6 +378,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             var sourceProfile = new ConnectionProfile
             {
                 EnvironmentUrl = string.IsNullOrEmpty(srcUrl) ? "https://source-env.crm.dynamics.com" : srcUrl,
+                UseInteractiveAuth = interactive,
+                ClientId = clientId,
                 TimeoutSeconds = 60
             };
 
@@ -387,8 +420,9 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string srcUrl = "";
             string srcConnstr = "";
             string solutionName = "";
-            bool interactive = false;
+            bool interactive = true;
             bool simulate = false;
+            string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -421,7 +455,18 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                         break;
                     case "--interactive":
                     case "-interactive":
-                        interactive = true;
+                        if (i + 1 < args.Length && (args[i + 1].ToLower() == "false" || args[i + 1].ToLower() == "true"))
+                        {
+                            interactive = bool.Parse(args[++i]);
+                        }
+                        else
+                        {
+                            interactive = true;
+                        }
+                        break;
+                    case "--client-id":
+                    case "-client-id":
+                        if (i + 1 < args.Length) clientId = args[++i];
                         break;
                     case "--simulate":
                     case "-simulate":
@@ -443,6 +488,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 EnvironmentUrl = envUrl,
                 ConnectionString = connString,
                 UseInteractiveAuth = interactive,
+                ClientId = clientId,
                 TimeoutSeconds = 60
             };
 
@@ -454,6 +500,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     EnvironmentUrl = srcUrl,
                     ConnectionString = srcConnstr,
                     UseInteractiveAuth = interactive,
+                    ClientId = clientId,
                     TimeoutSeconds = 60
                 };
             }
