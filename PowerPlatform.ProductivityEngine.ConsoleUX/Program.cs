@@ -103,6 +103,11 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             Console.WriteLine("  repair     Parses a validation report and applies fixes (layer removal, dependency bundling).");
             Console.ResetColor();
 
+            Console.WriteLine("\nGeneral Global Options:");
+            Console.WriteLine("  --client-id <id>     Custom Azure AD Application (Client) ID.");
+            Console.WriteLine("  --tenant <id>        Azure AD Tenant ID or name (default: organizations).");
+            Console.WriteLine("  --redirect-uri <uri> Custom Redirect URI (default: http://localhost).");
+
             Console.WriteLine("\nOptions for 'validate':");
             Console.WriteLine("  --zip <path>         Local path to solution ZIP file to validate.");
             Console.WriteLine("  --url <url>         Target environment Web API URL.");
@@ -150,6 +155,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string solutionName = "";
             string validationLog = "";
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
+            string tenantId = "organizations";
+            string redirectUri = "http://localhost";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -182,6 +189,14 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     case "--client-id":
                     case "-client-id":
                         if (i + 1 < args.Length) clientId = args[++i];
+                        break;
+                    case "--tenant":
+                    case "-tenant":
+                        if (i + 1 < args.Length) tenantId = args[++i];
+                        break;
+                    case "--redirect-uri":
+                    case "-redirect-uri":
+                        if (i + 1 < args.Length) redirectUri = args[++i];
                         break;
                     case "--simulate":
                     case "-simulate":
@@ -229,6 +244,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 ConnectionString = connString,
                 UseInteractiveAuth = interactive,
                 ClientId = clientId,
+                TenantId = tenantId,
+                RedirectUri = redirectUri,
                 TimeoutSeconds = 60
             };
 
@@ -241,6 +258,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     ConnectionString = srcConnstr,
                     UseInteractiveAuth = interactive,
                     ClientId = clientId,
+                    TenantId = tenantId,
+                    RedirectUri = redirectUri,
                     TimeoutSeconds = 60
                 };
             }
@@ -291,6 +310,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string outDiff = "distill_diff.json";
             bool interactive = true;
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
+            string tenantId = "organizations";
+            string redirectUri = "http://localhost";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -324,6 +345,14 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     case "--client-id":
                     case "-client-id":
                         if (i + 1 < args.Length) clientId = args[++i];
+                        break;
+                    case "--tenant":
+                    case "-tenant":
+                        if (i + 1 < args.Length) tenantId = args[++i];
+                        break;
+                    case "--redirect-uri":
+                    case "-redirect-uri":
+                        if (i + 1 < args.Length) redirectUri = args[++i];
                         break;
                     case "--interactive":
                     case "-interactive":
@@ -380,6 +409,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 EnvironmentUrl = string.IsNullOrEmpty(srcUrl) ? "https://source-env.crm.dynamics.com" : srcUrl,
                 UseInteractiveAuth = interactive,
                 ClientId = clientId,
+                TenantId = tenantId,
+                RedirectUri = redirectUri,
                 TimeoutSeconds = 60
             };
 
@@ -423,6 +454,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             bool interactive = true;
             bool simulate = false;
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
+            string tenantId = "organizations";
+            string redirectUri = "http://localhost";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -468,6 +501,14 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     case "-client-id":
                         if (i + 1 < args.Length) clientId = args[++i];
                         break;
+                    case "--tenant":
+                    case "-tenant":
+                        if (i + 1 < args.Length) tenantId = args[++i];
+                        break;
+                    case "--redirect-uri":
+                    case "-redirect-uri":
+                        if (i + 1 < args.Length) redirectUri = args[++i];
+                        break;
                     case "--simulate":
                     case "-simulate":
                         simulate = true;
@@ -489,6 +530,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 ConnectionString = connString,
                 UseInteractiveAuth = interactive,
                 ClientId = clientId,
+                TenantId = tenantId,
+                RedirectUri = redirectUri,
                 TimeoutSeconds = 60
             };
 
@@ -501,6 +544,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     ConnectionString = srcConnstr,
                     UseInteractiveAuth = interactive,
                     ClientId = clientId,
+                    TenantId = tenantId,
+                    RedirectUri = redirectUri,
                     TimeoutSeconds = 60
                 };
             }

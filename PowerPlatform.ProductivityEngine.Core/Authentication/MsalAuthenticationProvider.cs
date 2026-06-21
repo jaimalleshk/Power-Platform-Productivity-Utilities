@@ -133,8 +133,16 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 string appKey = $"Interactive:{profile.TenantId}:{profile.ClientId}";
                 var app = PublicApps.GetOrAdd(appKey, _ =>
                 {
-                    var builder = PublicClientApplicationBuilder.Create(profile.ClientId)
-                        .WithRedirectUri("http://localhost");
+                    var builder = PublicClientApplicationBuilder.Create(profile.ClientId);
+
+                    if (!string.IsNullOrWhiteSpace(profile.RedirectUri))
+                    {
+                        builder.WithRedirectUri(profile.RedirectUri);
+                    }
+                    else
+                    {
+                        builder.WithDefaultRedirectUri();
+                    }
 
                     if (!string.IsNullOrWhiteSpace(profile.TenantId))
                     {
