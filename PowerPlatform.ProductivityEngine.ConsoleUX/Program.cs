@@ -25,15 +25,22 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
 ╚════════════════════════════════════════════════════════════════╝");
             Console.ResetColor();
 
-            if (args.Length == 0 || args[0].ToLower() == "help" || args[0] == "-h" || args[0] == "--help")
+            int commandIndex = 0;
+            if (args.Length > 0 && (args[0] == "--" || args[0] == "-") && args.Length > 1)
+            {
+                commandIndex = 1;
+            }
+
+            if (args.Length == 0 || args[commandIndex].TrimStart('-', '—').ToLower() == "help" || args[commandIndex] == "-h" || args[commandIndex] == "--help")
             {
                 PrintHelp();
                 return 0;
             }
 
-            string command = args[0].ToLower();
-            string[] subcommandArgs = new string[args.Length - 1];
-            Array.Copy(args, 1, subcommandArgs, 0, args.Length - 1);
+            string command = args[commandIndex].TrimStart('-', '—').ToLower();
+            int skipCount = commandIndex + 1;
+            string[] subcommandArgs = new string[args.Length - skipCount];
+            Array.Copy(args, skipCount, subcommandArgs, 0, args.Length - skipCount);
 
             switch (command)
             {
@@ -45,7 +52,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     return await RunRepairAsync(subcommandArgs).ConfigureAwait(false);
                 default:
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"[ERROR] Unknown command '{command}'. Use 'help' to see list of valid commands.");
+                    Console.WriteLine($"[ERROR] Unknown command '{args[commandIndex]}'. Use 'help' to see list of valid commands.");
                     Console.ResetColor();
                     return 1;
             }
@@ -111,39 +118,51 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
 
             for (int i = 0; i < args.Length; i++)
             {
-                switch (args[i].ToLower())
+                string arg = args[i].Replace("—", "--").ToLower();
+                switch (arg)
                 {
                     case "--zip":
+                    case "-zip":
                         if (i + 1 < args.Length) zipPath = args[++i];
                         break;
                     case "--url":
+                    case "-url":
                         if (i + 1 < args.Length) envUrl = args[++i];
                         break;
                     case "--connstr":
+                    case "-connstr":
                         if (i + 1 < args.Length) connString = args[++i];
                         break;
                     case "--interactive":
+                    case "-interactive":
                         interactive = true;
                         break;
                     case "--simulate":
+                    case "-simulate":
                         simulate = true;
                         break;
                     case "--out-json":
+                    case "-out-json":
                         if (i + 1 < args.Length) outJson = args[++i];
                         break;
                     case "--out-html":
+                    case "-out-html":
                         if (i + 1 < args.Length) outHtml = args[++i];
                         break;
                     case "--src-url":
+                    case "-src-url":
                         if (i + 1 < args.Length) srcUrl = args[++i];
                         break;
                     case "--src-connstr":
+                    case "-src-connstr":
                         if (i + 1 < args.Length) srcConnstr = args[++i];
                         break;
                     case "--solution":
+                    case "-solution":
                         if (i + 1 < args.Length) solutionName = args[++i];
                         break;
                     case "--validation-log":
+                    case "-validation-log":
                         if (i + 1 < args.Length) validationLog = args[++i];
                         break;
                 }
@@ -225,24 +244,31 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
 
             for (int i = 0; i < args.Length; i++)
             {
-                switch (args[i].ToLower())
+                string arg = args[i].Replace("—", "--").ToLower();
+                switch (arg)
                 {
                     case "--url":
+                    case "-url":
                         if (i + 1 < args.Length) srcUrl = args[++i];
                         break;
                     case "--solution":
+                    case "-solution":
                         if (i + 1 < args.Length) solutionName = args[++i];
                         break;
                     case "--zip":
+                    case "-zip":
                         if (i + 1 < args.Length) zipPath = args[++i];
                         break;
                     case "--out-zip":
+                    case "-out-zip":
                         if (i + 1 < args.Length) outZipPath = args[++i];
                         break;
                     case "--simulate":
+                    case "-simulate":
                         simulate = true;
                         break;
                     case "--out-diff":
+                    case "-out-diff":
                         if (i + 1 < args.Length) outDiff = args[++i];
                         break;
                 }
@@ -332,30 +358,39 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
 
             for (int i = 0; i < args.Length; i++)
             {
-                switch (args[i].ToLower())
+                string arg = args[i].Replace("—", "--").ToLower();
+                switch (arg)
                 {
                     case "--report":
+                    case "-report":
                         if (i + 1 < args.Length) reportPath = args[++i];
                         break;
                     case "--url":
+                    case "-url":
                         if (i + 1 < args.Length) envUrl = args[++i];
                         break;
                     case "--connstr":
+                    case "-connstr":
                         if (i + 1 < args.Length) connString = args[++i];
                         break;
                     case "--src-url":
+                    case "-src-url":
                         if (i + 1 < args.Length) srcUrl = args[++i];
                         break;
                     case "--src-connstr":
+                    case "-src-connstr":
                         if (i + 1 < args.Length) srcConnstr = args[++i];
                         break;
                     case "--solution":
+                    case "-solution":
                         if (i + 1 < args.Length) solutionName = args[++i];
                         break;
                     case "--interactive":
+                    case "-interactive":
                         interactive = true;
                         break;
                     case "--simulate":
+                    case "-simulate":
                         simulate = true;
                         break;
                 }
