@@ -3,7 +3,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Connections
     public class ConnectionProfile
     {
         public string EnvironmentUrl { get; set; } // e.g., "https://mydev.crm.dynamics.com"
-        public string TenantId { get; set; } = "organizations";
+        public string TenantId { get; set; }
         public string ClientId { get; set; } = "51f81489-12ee-4a9e-aaae-a2591f45987d";
         public string ClientSecret { get; set; } // Null if Certificate or Interactive
         public string ClientCertificateThumbprint { get; set; }

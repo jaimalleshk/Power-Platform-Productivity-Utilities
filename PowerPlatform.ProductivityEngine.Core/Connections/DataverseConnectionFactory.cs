@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using PowerPlatform.ProductivityEngine.Core.Authentication;
 
@@ -31,14 +32,16 @@ namespace PowerPlatform.ProductivityEngine.Core.Connections
 
             // Using token provider constructor for ServiceClient
             var uri = new Uri(profile.EnvironmentUrl);
+            string token = _authProvider.GetAccessTokenAsync(profile).GetAwaiter().GetResult();
             var serviceClient = new ServiceClient(
                 uri,
-                async (resourceUrl) => await _authProvider.GetAccessTokenAsync(profile).ConfigureAwait(false),
+                (_) => Task.FromResult(token),
                 useUniqueInstance: true
             );
 
             if (!serviceClient.IsReady)
             {
+                _authProvider.ClearTokenCache(profile.EnvironmentUrl);
                 throw new InvalidOperationException($"Failed to initialize ServiceClient: {serviceClient.LastError}", serviceClient.LastException);
             }
 

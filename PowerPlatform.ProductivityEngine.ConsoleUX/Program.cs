@@ -156,7 +156,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string solutionName = "";
             string validationLog = "";
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
-            string tenantId = "organizations";
+            string tenantId = "";
             string redirectUri = "http://localhost";
             string loginHint = "";
 
@@ -318,7 +318,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string outDiff = "distill_diff.json";
             bool interactive = true;
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
-            string tenantId = "organizations";
+            string tenantId = "";
             string redirectUri = "http://localhost";
             string loginHint = "";
 
@@ -468,7 +468,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             bool interactive = true;
             bool simulate = false;
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
-            string tenantId = "organizations";
+            string tenantId = "";
             string redirectUri = "http://localhost";
             string loginHint = "";
 
