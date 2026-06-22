@@ -152,21 +152,39 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                     return builder.Build();
                 });
 
-                var accounts = await app.GetAccountsAsync().ConfigureAwait(false);
-                try
-                {
-                    var silentResult = await app.AcquireTokenSilent(scopes, accounts.FirstOrDefault())
-                        .ExecuteAsync()
-                        .ConfigureAwait(false);
-                    return silentResult.AccessToken;
-                }
-                catch (MsalUiRequiredException)
-                {
-                    var interactiveResult = await app.AcquireTokenInteractive(scopes)
-                        .ExecuteAsync()
-                        .ConfigureAwait(false);
-                    return interactiveResult.AccessToken;
-                }
+                 var accounts = await app.GetAccountsAsync().ConfigureAwait(false);
+                 IAccount accountToUse = null;
+                 if (!string.IsNullOrWhiteSpace(profile.LoginHint))
+                 {
+                     accountToUse = accounts.FirstOrDefault(a => a.Username.Equals(profile.LoginHint, StringComparison.OrdinalIgnoreCase));
+                 }
+                 else
+                 {
+                     accountToUse = accounts.FirstOrDefault();
+                 }
+
+                 try
+                 {
+                     var silentResult = await app.AcquireTokenSilent(scopes, accountToUse)
+                         .ExecuteAsync()
+                         .ConfigureAwait(false);
+                     return silentResult.AccessToken;
+                 }
+                 catch (MsalUiRequiredException)
+                 {
+                     var interactiveBuilder = app.AcquireTokenInteractive(scopes)
+                         .WithPrompt(Prompt.SelectAccount);
+
+                     if (!string.IsNullOrWhiteSpace(profile.LoginHint))
+                     {
+                         interactiveBuilder = interactiveBuilder.WithLoginHint(profile.LoginHint);
+                     }
+
+                     var interactiveResult = await interactiveBuilder
+                         .ExecuteAsync()
+                         .ConfigureAwait(false);
+                     return interactiveResult.AccessToken;
+                 }
             }
 
             throw new InvalidOperationException("No valid authentication credentials were provided in the connection profile.");

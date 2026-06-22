@@ -107,6 +107,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             Console.WriteLine("  --client-id <id>     Custom Azure AD Application (Client) ID.");
             Console.WriteLine("  --tenant <id>        Azure AD Tenant ID or name (default: organizations).");
             Console.WriteLine("  --redirect-uri <uri> Custom Redirect URI (default: http://localhost).");
+            Console.WriteLine("  --login-hint <email> Pre-fills the login username (SSO hint).");
 
             Console.WriteLine("\nOptions for 'validate':");
             Console.WriteLine("  --zip <path>         Local path to solution ZIP file to validate.");
@@ -157,6 +158,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
             string tenantId = "organizations";
             string redirectUri = "http://localhost";
+            string loginHint = "";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -197,6 +199,10 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     case "--redirect-uri":
                     case "-redirect-uri":
                         if (i + 1 < args.Length) redirectUri = args[++i];
+                        break;
+                    case "--login-hint":
+                    case "-login-hint":
+                        if (i + 1 < args.Length) loginHint = args[++i];
                         break;
                     case "--simulate":
                     case "-simulate":
@@ -246,6 +252,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 ClientId = clientId,
                 TenantId = tenantId,
                 RedirectUri = redirectUri,
+                LoginHint = loginHint,
                 TimeoutSeconds = 60
             };
 
@@ -260,6 +267,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     ClientId = clientId,
                     TenantId = tenantId,
                     RedirectUri = redirectUri,
+                    LoginHint = loginHint,
                     TimeoutSeconds = 60
                 };
             }
@@ -312,6 +320,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
             string tenantId = "organizations";
             string redirectUri = "http://localhost";
+            string loginHint = "";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -353,6 +362,10 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     case "--redirect-uri":
                     case "-redirect-uri":
                         if (i + 1 < args.Length) redirectUri = args[++i];
+                        break;
+                    case "--login-hint":
+                    case "-login-hint":
+                        if (i + 1 < args.Length) loginHint = args[++i];
                         break;
                     case "--interactive":
                     case "-interactive":
@@ -411,6 +424,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 ClientId = clientId,
                 TenantId = tenantId,
                 RedirectUri = redirectUri,
+                LoginHint = loginHint,
                 TimeoutSeconds = 60
             };
 
@@ -456,6 +470,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
             string tenantId = "organizations";
             string redirectUri = "http://localhost";
+            string loginHint = "";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -509,6 +524,10 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     case "-redirect-uri":
                         if (i + 1 < args.Length) redirectUri = args[++i];
                         break;
+                    case "--login-hint":
+                    case "-login-hint":
+                        if (i + 1 < args.Length) loginHint = args[++i];
+                        break;
                     case "--simulate":
                     case "-simulate":
                         simulate = true;
@@ -532,6 +551,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 ClientId = clientId,
                 TenantId = tenantId,
                 RedirectUri = redirectUri,
+                LoginHint = loginHint,
                 TimeoutSeconds = 60
             };
 
@@ -546,6 +566,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     ClientId = clientId,
                     TenantId = tenantId,
                     RedirectUri = redirectUri,
+                    LoginHint = loginHint,
                     TimeoutSeconds = 60
                 };
             }

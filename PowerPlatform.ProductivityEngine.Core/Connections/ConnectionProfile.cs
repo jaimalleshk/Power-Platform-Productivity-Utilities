@@ -11,6 +11,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Connections
         public string Password { get; set; }
         public bool UseInteractiveAuth { get; set; } = true;
         public string RedirectUri { get; set; } = "http://localhost";
+        public string LoginHint { get; set; }
         public string ConnectionString { get; set; } // If provided, takes precedence over other fields
         public int TimeoutSeconds { get; set; } = 120;
     }
