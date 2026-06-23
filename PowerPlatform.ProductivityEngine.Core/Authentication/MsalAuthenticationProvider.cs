@@ -71,15 +71,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                         RedirectUri = !string.IsNullOrWhiteSpace(profile.RedirectUri) ? new Uri(profile.RedirectUri) : new Uri("http://localhost")
                     };
 
-                    if (!string.IsNullOrWhiteSpace(profile.TenantId) && profile.TenantId != "organizations" && profile.TenantId != "common")
-                    {
-                        options.TenantId = profile.TenantId;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(profile.LoginHint))
-                    {
-                        options.LoginHint = profile.LoginHint;
-                    }
 
                     var credential = new InteractiveBrowserCredential(options);
                     var tokenRequestContext = new TokenRequestContext(new[] { scope });
@@ -98,10 +89,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                     if (!string.IsNullOrWhiteSpace(profile.RedirectUri))
                     {
                         connStr += $"RedirectUri={profile.RedirectUri};";
-                    }
-                    if (!string.IsNullOrWhiteSpace(profile.LoginHint))
-                    {
-                        connStr += $"LoginHint={profile.LoginHint};";
                     }
 
                     if (!string.IsNullOrWhiteSpace(profile.ClientSecret))
