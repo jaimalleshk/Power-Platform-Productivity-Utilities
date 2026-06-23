@@ -36,8 +36,23 @@ namespace Utilities.SolutionDeepValidator.Engine
                 return cache;
             }
 
-            double percentStep = 100.0 / 11.0;
+            double percentStep = 100.0 / 12.0;
             double currentPercent = 0.0;
+
+            // Crawl Organization Info (Friendly Name)
+            try
+            {
+                var orgItems = await GetPagedODataResultsAsync("organizations?$select=name", progress, "OrganizationInfo").ConfigureAwait(false);
+                if (orgItems.Count > 0 && orgItems[0].TryGetProperty("name", out var nameProp))
+                {
+                    cache.OrganizationFriendlyName = nameProp.GetString() ?? "Unknown Env";
+                }
+            }
+            catch (Exception ex)
+            {
+                cache.MetadataGaps.Add($"OrganizationInfo: {ex.Message}");
+                cache.OrganizationFriendlyName = "Unknown Env";
+            }
 
             // Helper to report progress
             void Report(string message)
@@ -397,6 +412,7 @@ namespace Utilities.SolutionDeepValidator.Engine
 
         private void SimulatePopulateCache(TargetMetadataCache cache, List<EntityManifestData> localEntities)
         {
+            cache.OrganizationFriendlyName = "Verizon Sandbox UAT";
             // Solutions
             cache.Solutions.Add(new SolutionCacheItem { UniqueName = "CorePrerequisites", Version = "1.0.0.0", IsManaged = true });
             cache.Solutions.Add(new SolutionCacheItem { UniqueName = "OmnichannelBase", Version = "2.1.0.0", IsManaged = true });

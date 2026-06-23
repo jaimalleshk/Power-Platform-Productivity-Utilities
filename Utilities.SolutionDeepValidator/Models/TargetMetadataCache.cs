@@ -5,6 +5,7 @@ namespace Utilities.SolutionDeepValidator.Models
 {
     public class TargetMetadataCache
     {
+        public string OrganizationFriendlyName { get; set; } = string.Empty;
         public List<SolutionCacheItem> Solutions { get; set; } = new List<SolutionCacheItem>();
         public List<EntityCacheItem> Entities { get; set; } = new List<EntityCacheItem>();
         public Dictionary<string, List<AttributeCacheItem>> Attributes { get; set; } = new Dictionary<string, List<AttributeCacheItem>>(StringComparer.OrdinalIgnoreCase);

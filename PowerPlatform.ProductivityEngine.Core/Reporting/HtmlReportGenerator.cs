@@ -50,35 +50,47 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
 
             if (report.Metrics.BlockersCount > 0)
             {
-                statusColor = "#dc3545"; // Crimson Red
+                statusColor = "#ff6b7a"; // Crimson Red
                 statusText = "FAILED (BLOCKERS DETECTED)";
                 statusBannerBg = "linear-gradient(135deg, #721c24 0%, #dc3545 100%)";
             }
             else if (report.Metrics.WarningsCount > 0)
             {
-                statusColor = "#ffc107"; // Amber Yellow
+                statusColor = "#ffd54f"; // Amber Yellow
                 statusText = "PASSED WITH WARNINGS";
                 statusBannerBg = "linear-gradient(135deg, #856404 0%, #e0a800 100%)";
             }
             else
             {
-                statusColor = "#198754"; // Emerald Green
+                statusColor = "#34d399"; // Success Green
                 statusText = "SUCCESS (NO ISSUES DETECTED)";
                 statusBannerBg = "linear-gradient(135deg, #0f5132 0%, #198754 100%)";
             }
 
-            var sb = new StringBuilder();
+            var mainSb = new StringBuilder();
+            var infoSb = new StringBuilder();
+            int mainCount = 0;
+            int infoCount = 0;
 
-            // Construct HTML rows
             foreach (var issue in report.Issues)
             {
-                string severityBadgeClass = issue.Severity.Equals("Red", StringComparison.OrdinalIgnoreCase) 
-                    ? "badge-danger" 
-                    : "badge-warning";
-                
+                bool isInfo = issue.Severity.Equals("Info", StringComparison.OrdinalIgnoreCase);
+                var currentSb = isInfo ? infoSb : mainSb;
+                if (isInfo) infoCount++; else mainCount++;
+
+                string severityBadgeClass = "badge-info";
+                if (issue.Severity.Equals("Red", StringComparison.OrdinalIgnoreCase))
+                {
+                    severityBadgeClass = "badge-danger";
+                }
+                else if (issue.Severity.Equals("Yellow", StringComparison.OrdinalIgnoreCase))
+                {
+                    severityBadgeClass = "badge-warning";
+                }
+
                 string resolutionLink = !string.IsNullOrEmpty(issue.ResolutionUrl)
-                    ? $"<a href='{issue.ResolutionUrl}' target='_blank' class='resolution-link'>Learn More</a>"
-                    : "<span class='text-muted'>N/A</span>";
+                    ? $" <a href='{issue.ResolutionUrl}' target='_blank' class='resolution-link'>[Learn More]</a>"
+                    : "";
 
                 string odataQuerySection = !string.IsNullOrEmpty(issue.HelpODataQuery)
                     ? $@"<div class='odata-box'>
@@ -87,31 +99,74 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
                          </div>"
                     : "";
 
-                sb.Append($@"
+                string logicalNameDisplay = !string.IsNullOrEmpty(issue.ParentTable)
+                    ? $"{issue.ParentTable} : {issue.LogicalName}"
+                    : issue.LogicalName;
+
+                currentSb.Append($@"
                     <tr class='issue-row' data-severity='{issue.Severity}'>
                         <td><span class='badge {severityBadgeClass}'>{issue.Severity}</span></td>
                         <td class='font-monospace'>{issue.Id}</td>
                         <td>{issue.ComponentType}</td>
-                        <td class='font-monospace'>{issue.LogicalName}</td>
-                        <td class='font-monospace'>{issue.ParentTable ?? "-"}</td>
+                        <td class='font-monospace'>{logicalNameDisplay}</td>
                         <td>
-                            <div class='issue-desc'>{issue.Description}</div>
+                            <div class='issue-desc'>{issue.Description}{resolutionLink}</div>
                             {odataQuerySection}
                         </td>
-                        <td>{resolutionLink}</td>
                     </tr>");
             }
 
-            string tableRowsHtml = sb.ToString();
-            if (report.Issues.Count == 0)
+            string tableRowsHtml = mainSb.ToString();
+            if (mainCount == 0)
             {
                 tableRowsHtml = @"
                     <tr>
-                        <td colspan='7' class='text-center py-5 text-muted'>
-                            <div class='fs-4 mb-2'>🎉 No Issues Found!</div>
-                            Your solution is perfectly aligned with the target environment.
+                        <td colspan='5' class='text-center py-5 text-muted'>
+                            <div class='fs-4 mb-2'>🎉 No Blockers or Warnings Found!</div>
+                            Your solution has passed all critical checks.
                         </td>
                     </tr>";
+            }
+
+            string infoTableRowsHtml = infoSb.ToString();
+            if (infoCount == 0)
+            {
+                infoTableRowsHtml = @"
+                    <tr>
+                        <td colspan='5' class='text-center py-4 text-muted'>
+                            No informational logs generated.
+                        </td>
+                    </tr>";
+            }
+
+            string infoSectionHtml = "";
+            if (infoCount > 0)
+            {
+                infoSectionHtml = $@"
+        <!-- Info Severity Issues (Collapsible) -->
+        <details class=""info-details"" style=""margin-top: 2rem; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.25rem 1.5rem;"">
+            <summary style=""cursor: pointer; font-weight: 600; color: var(--text-secondary); outline: none; user-select: none;"">
+                Additional Informational Logs ({infoCount})
+            </summary>
+            <div style=""margin-top: 1rem;"">
+                <div class=""table-responsive"">
+                    <table id=""infoIssuesTable"">
+                        <thead>
+                            <tr>
+                                <th onclick=""sortInfoTable(0)"">Severity</th>
+                                <th onclick=""sortInfoTable(1)"">Issue ID</th>
+                                <th onclick=""sortInfoTable(2)"">Type</th>
+                                <th onclick=""sortInfoTable(3)"">Logical Name</th>
+                                <th onclick=""sortInfoTable(4)"">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id=""infoTableBody"">
+                            {infoTableRowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </details>";
             }
 
             return $@"<!DOCTYPE html>
@@ -120,7 +175,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>Solution Deep Validator Report - {report.SolutionName}</title>
-    <link href=""https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"" rel=""stylesheet"">
     <style>
         :root {{
             --bg-primary: #0f172a;
@@ -142,7 +196,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
         }}
 
         body {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, ""Segoe UI"", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.5;
@@ -192,6 +246,40 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
         .banner-info p {{
             color: rgba(255, 255, 255, 0.8);
             font-size: 1.1rem;
+        }}
+
+        .meta-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem 1.5rem;
+            margin-top: 1.25rem;
+            max-width: 900px;
+        }}
+
+        @media (max-width: 768px) {{
+            .meta-grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        .meta-item {{
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }}
+
+        .meta-label {{
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 600;
+        }}
+
+        .meta-value {{
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 500;
         }}
 
         .status-badge {{
@@ -379,9 +467,15 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
             border: 1px solid rgba(255, 193, 7, 0.3);
         }}
 
+        .badge-info {{
+            background-color: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }}
+
         /* Formatting */
-        .font-monospace {{
-            font-family: 'JetBrains Mono', monospace;
+        .font-monospace, code {{
+            font-family: SFMono-Regular, Consolas, ""Liberation Mono"", Menlo, Courier, monospace;
             font-size: 0.875rem;
         }}
 
@@ -396,7 +490,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
             border-radius: 6px;
             padding: 0.75rem;
             margin-top: 0.5rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: SFMono-Regular, Consolas, ""Liberation Mono"", Menlo, Courier, monospace;
             font-size: 0.8rem;
             overflow-x: auto;
         }}
@@ -408,15 +502,16 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 0.25rem;
-            font-family: 'Inter', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, ""Segoe UI"", Roboto, sans-serif;
             font-weight: 600;
         }}
 
         .resolution-link {{
             color: #818cf8;
             text-decoration: none;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 0.9rem;
+            margin-left: 0.5rem;
             transition: var(--transition);
         }}
 
@@ -427,6 +522,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
 
         .text-center {{ text-align: center; }}
         .py-5 {{ padding-top: 3rem; padding-bottom: 3rem; }}
+        .py-4 {{ padding-top: 2rem; padding-bottom: 2rem; }}
         .fs-4 {{ font-size: 1.5rem; }}
         .mb-2 {{ margin-bottom: 0.5rem; }}
         .text-muted {{ color: var(--text-secondary); }}
@@ -450,17 +546,42 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
         <div class=""banner"">
             <div class=""banner-info"">
                 <h1>{report.SolutionName}</h1>
-                <p>Environment: {report.TargetEnvironment} &nbsp;|&nbsp; Version: {report.SourceVersion}</p>
+                <p style=""font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 500;"">
+                    Status: <span style=""font-weight: 700; color: #ffffff;"">{statusText}</span>
+                </p>
+                
+                <div class=""meta-grid"">
+                    <div class=""meta-item"">
+                        <span class=""meta-label"">Target Env</span>
+                        <span class=""meta-value"">{report.TargetFriendlyName} ({report.TargetEnvironment})</span>
+                    </div>
+                    <div class=""meta-item"">
+                        <span class=""meta-label"">Solution Version</span>
+                        <span class=""meta-value"">{report.SourceVersion}</span>
+                    </div>
+                    <div class=""meta-item"">
+                        <span class=""meta-label"">Source Package</span>
+                        <span class=""meta-value"" style=""word-break: break-all;"">{report.SourceZipPath}</span>
+                    </div>
+                    <div class=""meta-item"">
+                        <span class=""meta-label"">Executed By</span>
+                        <span class=""meta-value"">{report.UserPrincipalName}</span>
+                    </div>
+                    <div class=""meta-item"">
+                        <span class=""meta-label"">Validation Period</span>
+                        <span class=""meta-value"">{report.ValidationStartTimestamp:yyyy-MM-dd HH:mm:ss} to {report.ValidationEndTimestamp:yyyy-MM-dd HH:mm:ss} UTC ({report.ValidationDurationSeconds:F1}s)</span>
+                    </div>
+                </div>
             </div>
             <div class=""status-badge"" style=""color: {statusColor};"">
-                {statusText}
+                {report.OverallResult}
             </div>
         </div>
 
         <!-- Metrics Cards -->
         <div class=""metrics-grid"">
             <div class=""metric-card"">
-                <div class=""metric-title"">Total Evaluated</div>
+                <div class=""metric-title"">Components Scanned</div>
                 <div class=""metric-value evaluated"">{report.Metrics.TotalComponentsEvaluated}</div>
             </div>
             <div class=""metric-card"">
@@ -474,7 +595,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
             <div class=""metric-card"">
                 <div class=""metric-title"">Execution Timestamp</div>
                 <div class=""metric-value"" style=""font-size: 1.15rem; font-weight: 500; margin-top: 0.5rem;"">
-                    {report.ValidationTimestamp:yyyy-MM-dd HH:mm:ss} UTC
+                    {report.ValidationEndTimestamp:yyyy-MM-dd HH:mm:ss} UTC
                 </div>
             </div>
         </div>
@@ -482,10 +603,10 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
         <!-- Controls -->
         <div class=""controls-card"">
             <div class=""search-wrapper"">
-                <input type=""text"" id=""searchInput"" class=""search-input"" placeholder=""Search issues by component, tables, or description..."">
+                <input type=""text"" id=""searchInput"" class=""search-input"" placeholder=""Search issues by ID, type, component name, or description..."">
             </div>
             <div class=""filter-buttons"">
-                <button class=""filter-btn active"" onclick=""filterSeverity('All', this)"">All ({report.Issues.Count})</button>
+                <button class=""filter-btn active"" onclick=""filterSeverity('All', this)"">Issues Raised ({mainCount})</button>
                 <button class=""filter-btn"" onclick=""filterSeverity('Red', this)"">Blockers ({report.Metrics.BlockersCount})</button>
                 <button class=""filter-btn"" onclick=""filterSeverity('Yellow', this)"">Warnings ({report.Metrics.WarningsCount})</button>
             </div>
@@ -501,9 +622,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
                             <th onclick=""sortTable(1)"">Issue ID</th>
                             <th onclick=""sortTable(2)"">Type</th>
                             <th onclick=""sortTable(3)"">Logical Name</th>
-                            <th onclick=""sortTable(4)"">Parent Table</th>
-                            <th onclick=""sortTable(5)"">Description</th>
-                            <th>Resolution</th>
+                            <th onclick=""sortTable(4)"">Description</th>
                         </tr>
                     </thead>
                     <tbody id=""tableBody"">
@@ -512,6 +631,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
                 </table>
             </div>
         </div>
+
+        {infoSectionHtml}
     </div>
 
     <script>
@@ -532,27 +653,30 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
 
         function applyFilters() {{
             const query = searchInput.value.toLowerCase();
-            const rows = document.querySelectorAll('.issue-row');
-
-            rows.forEach(row => {{
+            
+            // Filter main table
+            const mainRows = document.querySelectorAll('#tableBody .issue-row');
+            mainRows.forEach(row => {{
                 const severity = row.getAttribute('data-severity');
                 const rowText = row.textContent.toLowerCase();
 
                 const matchesSeverity = (currentSeverityFilter === 'All' || severity === currentSeverityFilter);
                 const matchesSearch = rowText.includes(query);
 
-                if (matchesSeverity && matchesSearch) {{
-                    row.style.display = '';
-                }} else {{
-                    row.style.display = 'none';
-                }}
+                row.style.display = (matchesSeverity && matchesSearch) ? '' : 'none';
+            }});
+
+            // Filter info table if present
+            const infoRows = document.querySelectorAll('#infoTableBody tr');
+            infoRows.forEach(row => {{
+                const rowText = row.textContent.toLowerCase();
+                row.style.display = rowText.includes(query) ? '' : 'none';
             }});
         }}
 
-        // Sorting Logic
-        let sortDirections = [true, true, true, true, true, true];
+        // Sorting Logic for main table
+        let sortDirections = [true, true, true, true, true];
         function sortTable(colIndex) {{
-            const table = document.getElementById(""issuesTable"");
             const tbody = document.getElementById(""tableBody"");
             const rows = Array.from(tbody.querySelectorAll("".issue-row""));
             if (rows.length === 0) return;
@@ -569,7 +693,29 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
                     : cellB.localeCompare(cellA, undefined, {{ numeric: true, sensitivity: 'base' }});
             }});
 
-            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
+        }}
+
+        // Sorting Logic for info table
+        let infoSortDirections = [true, true, true, true, true];
+        function sortInfoTable(colIndex) {{
+            const tbody = document.getElementById(""infoTableBody"");
+            if (!tbody) return;
+            const rows = Array.from(tbody.querySelectorAll(""tr""));
+            if (rows.length === 0) return;
+
+            const isAscending = infoSortDirections[colIndex];
+            infoSortDirections[colIndex] = !isAscending;
+
+            rows.sort((a, b) => {{
+                const cellA = a.cells[colIndex].textContent.trim();
+                const cellB = b.cells[colIndex].textContent.trim();
+                
+                return isAscending 
+                    ? cellA.localeCompare(cellB, undefined, {{ numeric: true, sensitivity: 'base' }})
+                    : cellB.localeCompare(cellA, undefined, {{ numeric: true, sensitivity: 'base' }});
+            }});
+
             rows.forEach(row => tbody.appendChild(row));
         }}
     </script>

@@ -47,7 +47,8 @@ namespace Utilities.SolutionDeepValidator.Validators
                             Severity = "Red",
                             ComponentType = "Solution",
                             LogicalName = manifest.UniqueName,
-                            Description = $"Import version '{manifest.Version}' is lower than target version '{targetSolution.Version}'. Downgrades are blocked."
+                            Description = $"Import version '{manifest.Version}' is lower than target version '{targetSolution.Version}'. Downgrades are blocked.",
+                            ResolutionUrl = "https://learn.microsoft.com/en-us/power-platform/alm/solution-layers"
                         });
                     }
                     else if (sourceVer == targetVer)
@@ -58,7 +59,8 @@ namespace Utilities.SolutionDeepValidator.Validators
                             Severity = "Yellow",
                             ComponentType = "Solution",
                             LogicalName = manifest.UniqueName,
-                            Description = $"Import version '{manifest.Version}' is identical to the target version. Import will overwrite target customizations."
+                            Description = $"Import version '{manifest.Version}' is identical to the target version. Import will overwrite target customizations.",
+                            ResolutionUrl = "https://learn.microsoft.com/en-us/power-platform/alm/solution-layers"
                         });
                     }
                 }
@@ -72,7 +74,8 @@ namespace Utilities.SolutionDeepValidator.Validators
                         Severity = "Red",
                         ComponentType = "Solution",
                         LogicalName = manifest.UniqueName,
-                        Description = $"Cannot import managed solution '{manifest.UniqueName}' because the target environment already contains this solution as unmanaged."
+                        Description = $"Cannot import managed solution '{manifest.UniqueName}' because the target environment already contains this solution as unmanaged.",
+                        ResolutionUrl = "https://learn.microsoft.com/en-us/power-platform/alm/solution-layers"
                     });
                 }
             }
@@ -178,7 +181,8 @@ namespace Utilities.SolutionDeepValidator.Validators
                         Severity = "Red",
                         ComponentType = "Dependency",
                         LogicalName = dep.RequiredSchemaName,
-                        Description = desc
+                        Description = desc,
+                        ResolutionUrl = "https://learn.microsoft.com/en-us/power-platform/alm/dependency-tracking-alm"
                     });
                 }
             }

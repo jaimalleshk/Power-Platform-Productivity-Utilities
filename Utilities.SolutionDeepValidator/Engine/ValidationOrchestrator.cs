@@ -10,6 +10,7 @@ using PowerPlatform.ProductivityEngine.Core.Reporting;
 using Utilities.SolutionDeepValidator.Models;
 using Utilities.SolutionDeepValidator.Parsing;
 using Utilities.SolutionDeepValidator.Validators;
+using PowerPlatform.ProductivityEngine.Core.Authentication;
 
 namespace Utilities.SolutionDeepValidator.Engine
 {
@@ -45,6 +46,9 @@ namespace Utilities.SolutionDeepValidator.Engine
             string? validationLogPath = null,
             IProgress<ProgressUpdate>? progress = null)
         {
+            var startTime = DateTime.UtcNow;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
             byte[]? byteContent = null;
 
             // Phase 1: Solution ZIP Acquisition (Local or Source Export)
@@ -198,12 +202,47 @@ namespace Utilities.SolutionDeepValidator.Engine
                 confidenceScore = "Medium";
             }
 
+            stopwatch.Stop();
+            var endTime = DateTime.UtcNow;
+            double durationSeconds = stopwatch.Elapsed.TotalSeconds;
+
+            string friendlyName = targetCache.OrganizationFriendlyName;
+            if (string.IsNullOrEmpty(friendlyName))
+            {
+                friendlyName = "Target Environment";
+            }
+
+            string upn = "Unknown";
+            if (!_useSimulationMode)
+            {
+                try
+                {
+                    var authProvider = new MsalAuthenticationProvider();
+                    string token = await authProvider.GetAccessTokenAsync(targetProfile).ConfigureAwait(false);
+                    upn = ExtractUpnFromToken(token);
+                }
+                catch
+                {
+                    upn = targetProfile.Username ?? targetProfile.LoginHint ?? "Unknown";
+                }
+            }
+            else
+            {
+                upn = "simulation.user@verizon.com";
+            }
+
             var report = new ValidationReport
             {
                 SolutionName = manifestData.UniqueName,
                 SourceVersion = manifestData.Version,
                 TargetEnvironment = targetProfile.EnvironmentUrl,
-                ValidationTimestamp = DateTime.UtcNow,
+                TargetFriendlyName = friendlyName,
+                SourceZipPath = solutionZipPath,
+                UserPrincipalName = upn,
+                ValidationTimestamp = endTime,
+                ValidationStartTimestamp = startTime,
+                ValidationEndTimestamp = endTime,
+                ValidationDurationSeconds = durationSeconds,
                 OverallResult = blockerCount > 0 ? "Failed" : (warningCount > 0 ? "PassedWithWarnings" : "Passed"),
                 ConfidenceScore = confidenceScore,
                 Metrics = new ValidationMetrics
@@ -298,6 +337,8 @@ namespace Utilities.SolutionDeepValidator.Engine
                 return issues;
             }
 
+            progress?.Report(new ProgressUpdate { Stage = "Platform Staging", Message = "Uploading and staging solution for validation...", PercentComplete = 33 });
+
             // Convert to Base64 for the StageSolution action payload
             string base64Zip = Convert.ToBase64String(zipBytes);
             var payload = new Dictionary<string, object>
@@ -313,101 +354,99 @@ namespace Utilities.SolutionDeepValidator.Engine
                 throw new InvalidOperationException($"StageSolution POST request failed. StatusCode: {postResponse.StatusCode}, Error: {errorContent}");
             }
 
-            // Read the StageSolutionStatusId
+            // 2. Read StageSolutionResults directly from the POST response
             using var responseDoc = await postResponse.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
-            if (responseDoc == null || !responseDoc.RootElement.TryGetProperty("StageSolutionStatusId", out var idProp))
+            if (responseDoc == null)
             {
-                throw new InvalidOperationException("Response from StageSolution action did not contain StageSolutionStatusId.");
+                throw new InvalidOperationException("Response from StageSolution action was empty.");
             }
 
-            string statusId = idProp.GetString() ?? throw new InvalidOperationException("StageSolutionStatusId is null.");
-            progress?.Report(new ProgressUpdate { Stage = "Platform Staging", Message = $"Staging job initiated. Status ID: {statusId}. Polling...", PercentComplete = 33 });
-
-            // 2. Poll for status
-            int pollCount = 0;
-            int maxPolls = 30; // 30 attempts, 5 seconds apart = 150 seconds max
-            while (pollCount < maxPolls)
+            var root = responseDoc.RootElement;
+            if (root.TryGetProperty("SolutionValidationResults", out var resultsProp) && resultsProp.ValueKind == JsonValueKind.Array)
             {
-                await Task.Delay(5000).ConfigureAwait(false);
-                pollCount++;
-
-                var getResponse = await client.GetAsync($"msdyn_stagesolutionstatuses({statusId})").ConfigureAwait(false);
-                if (!getResponse.IsSuccessStatusCode)
+                foreach (var resultEl in resultsProp.EnumerateArray())
                 {
-                    progress?.Report(new ProgressUpdate { Stage = "Platform Staging", Message = $"Polling failed on attempt {pollCount} (status {getResponse.StatusCode}). Retrying...", Status = ProgressStatus.Warning });
-                    continue;
-                }
-
-                using var statusDoc = await getResponse.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
-                if (statusDoc == null) continue;
-
-                var root = statusDoc.RootElement;
-                if (root.TryGetProperty("msdyn_status", out var statusProp))
-                {
-                    int statusVal = statusProp.GetInt32();
-                    if (statusVal == 1) // Staged / In Progress
+                    int errorCode = 0;
+                    if (resultEl.TryGetProperty("ErrorCode", out var errCodeProp))
                     {
-                        progress?.Report(new ProgressUpdate { Stage = "Platform Staging", Message = $"Staging in progress (Attempt {pollCount}/{maxPolls})...", PercentComplete = 33 + (pollCount * 0.2) });
-                        continue;
+                        errorCode = errCodeProp.GetInt32();
                     }
 
-                    if (statusVal == 2) // Succeeded
+                    string message = "";
+                    if (resultEl.TryGetProperty("Message", out var msgProp))
                     {
-                        progress?.Report(new ProgressUpdate { Stage = "Platform Staging", Message = "Staging completed successfully.", PercentComplete = 38 });
-                        break;
+                        message = msgProp.GetString() ?? "";
                     }
 
-                    if (statusVal == 3) // Failed
+                    string additionalInfo = "";
+                    if (resultEl.TryGetProperty("AdditionalInfo", out var addInfoProp))
                     {
-                        progress?.Report(new ProgressUpdate { Stage = "Platform Staging", Message = "Staging failed. Retrieving error details...", Status = ProgressStatus.Error, PercentComplete = 38 });
-                        if (root.TryGetProperty("msdyn_validationdata", out var valDataProp))
-                        {
-                            string xmlValidationData = valDataProp.GetString() ?? string.Empty;
-                            ParseStagingValidationData(xmlValidationData, issues);
-                        }
-                        break;
+                        additionalInfo = addInfoProp.GetString() ?? "";
                     }
-                }
-            }
 
-            return issues;
-        }
+                    int resultType = 0;
+                    if (resultEl.TryGetProperty("SolutionValidationResultType", out var typeProp))
+                    {
+                        resultType = typeProp.GetInt32();
+                    }
 
-        private void ParseStagingValidationData(string xmlValidationData, List<ValidationIssue> issues)
-        {
-            if (string.IsNullOrEmpty(xmlValidationData)) return;
-
-            try
-            {
-                var doc = System.Xml.Linq.XDocument.Parse(xmlValidationData);
-                var errorNodes = doc.Descendants("ImportError");
-                foreach (var err in errorNodes)
-                {
-                    string code = err.Element("ErrorCode")?.Value ?? "ERR-STG";
-                    string desc = err.Element("Description")?.Value ?? "Unknown staging error";
-                    string compName = err.Element("SchemaName")?.Value ?? string.Empty;
-                    string compType = err.Element("Type")?.Value ?? "Component";
+                    // Mapping: 2 -> Red blocker, 1 -> Yellow warning, 0 -> Info
+                    string severity = "Info";
+                    if (resultType == 2) severity = "Red";
+                    else if (resultType == 1) severity = "Yellow";
 
                     issues.Add(new ValidationIssue
                     {
-                        Id = code,
-                        Severity = "Red",
-                        ComponentType = compType,
-                        LogicalName = compName,
-                        Description = $"Staging Error: {desc}"
+                        Id = $"ERR-{errorCode}",
+                        Severity = severity,
+                        ComponentType = "Solution",
+                        LogicalName = "",
+                        Description = string.IsNullOrEmpty(additionalInfo) ? message : $"{message} ({additionalInfo})"
                     });
                 }
             }
-            catch (Exception ex)
+
+            progress?.Report(new ProgressUpdate { Stage = "Platform Staging", Message = $"Staging validation complete. Found {issues.Count} validation issues.", PercentComplete = 38 });
+            return issues;
+        }
+
+        private static string ExtractUpnFromToken(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return "Unknown";
+
+            try
             {
-                issues.Add(new ValidationIssue
+                var parts = token.Split('.');
+                if (parts.Length < 2) return "Unknown";
+
+                string payload = parts[1];
+                payload = payload.Replace('-', '+').Replace('_', '/');
+                switch (payload.Length % 4)
                 {
-                    Id = "ERR-STG-PARSE",
-                    Severity = "Red",
-                    ComponentType = "StagingData",
-                    Description = $"Failed to parse staging validation logs: {ex.Message}"
-                });
+                    case 2: payload += "=="; break;
+                    case 3: payload += "="; break;
+                }
+
+                var bytes = Convert.FromBase64String(payload);
+                var json = System.Text.Encoding.UTF8.GetString(bytes);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("upn", out var upnProp))
+                    return upnProp.GetString() ?? "Unknown";
+                if (root.TryGetProperty("unique_name", out var uniqueNameProp))
+                    return uniqueNameProp.GetString() ?? "Unknown";
+                if (root.TryGetProperty("preferred_username", out var prefNameProp))
+                    return prefNameProp.GetString() ?? "Unknown";
+                if (root.TryGetProperty("email", out var emailProp))
+                    return emailProp.GetString() ?? "Unknown";
             }
+            catch
+            {
+                // Fallback
+            }
+
+            return "Unknown";
         }
     }
 }

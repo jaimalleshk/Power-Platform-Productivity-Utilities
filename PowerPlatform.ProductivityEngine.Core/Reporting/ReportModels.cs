@@ -9,7 +9,13 @@ namespace PowerPlatform.ProductivityEngine.Core.Reporting
         public string SolutionName { get; set; } = string.Empty;
         public string SourceVersion { get; set; } = string.Empty;
         public string TargetEnvironment { get; set; } = string.Empty;
+        public string TargetFriendlyName { get; set; } = string.Empty;
+        public string SourceZipPath { get; set; } = string.Empty;
+        public string UserPrincipalName { get; set; } = string.Empty;
         public DateTime ValidationTimestamp { get; set; }
+        public DateTime ValidationStartTimestamp { get; set; }
+        public DateTime ValidationEndTimestamp { get; set; }
+        public double ValidationDurationSeconds { get; set; }
         public string OverallResult { get; set; } = string.Empty; // Passed, PassedWithWarnings, Failed
         public string ConfidenceScore { get; set; } = "High"; // High, Medium, Low
         public ValidationMetrics Metrics { get; set; } = new ValidationMetrics();
