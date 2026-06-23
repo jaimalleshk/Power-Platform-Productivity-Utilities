@@ -13,6 +13,12 @@ namespace Utilities.SolutionRepairDistiller.Engine
         private readonly HttpClient? _httpClient;
         private readonly bool _useSimulationMode;
 
+        private static readonly JsonSerializerOptions PascalCaseJsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = null,
+            DictionaryKeyPolicy = null
+        };
+
         public SolutionDistillerEngine(HttpClient? httpClient = null, bool useSimulationMode = false)
         {
             _httpClient = httpClient;
@@ -153,7 +159,7 @@ namespace Utilities.SolutionRepairDistiller.Engine
                     SolutionUniqueName = solutionName
                 };
 
-                var remRes = await _httpClient.PostAsJsonAsync("RemoveSolutionComponent", removePayload).ConfigureAwait(false);
+                var remRes = await _httpClient.PostAsJsonAsync("RemoveSolutionComponent", removePayload, PascalCaseJsonOptions).ConfigureAwait(false);
                 if (!remRes.IsSuccessStatusCode)
                 {
                     string err = await remRes.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -171,7 +177,7 @@ namespace Utilities.SolutionRepairDistiller.Engine
                     DoNotIncludeSubcomponents = true
                 };
 
-                var addRes = await _httpClient.PostAsJsonAsync("AddSolutionComponent", addPayload).ConfigureAwait(false);
+                var addRes = await _httpClient.PostAsJsonAsync("AddSolutionComponent", addPayload, PascalCaseJsonOptions).ConfigureAwait(false);
                 if (!addRes.IsSuccessStatusCode)
                 {
                     string err = await addRes.Content.ReadAsStringAsync().ConfigureAwait(false);

@@ -153,9 +153,25 @@ namespace Utilities.SolutionDeepValidator.Engine
             // Source 4: Relationships
             try
             {
-                Report("Loading relationships...");
-                var items = await GetPagedODataResultsAsync("RelationshipDefinitions?$select=SchemaName,Entity1LogicalName,Entity2LogicalName", progress, "Relationships").ConfigureAwait(false);
-                foreach (var el in items)
+                Report("Loading OneToMany relationships...");
+                var oneToManyItems = await GetPagedODataResultsAsync(
+                    "RelationshipDefinitions/Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata?$select=SchemaName,ReferencedEntity,ReferencingEntity", 
+                    progress, "Relationships-1N").ConfigureAwait(false);
+                foreach (var el in oneToManyItems)
+                {
+                    cache.Relationships.Add(new RelationshipCacheItem
+                    {
+                        SchemaName = el.TryGetProperty("SchemaName", out var s) ? s.GetString() ?? "" : "",
+                        Entity1LogicalName = el.TryGetProperty("ReferencedEntity", out var e1) ? e1.GetString() ?? "" : "",
+                        Entity2LogicalName = el.TryGetProperty("ReferencingEntity", out var e2) ? e2.GetString() ?? "" : ""
+                    });
+                }
+
+                Report("Loading ManyToMany relationships...");
+                var manyToManyItems = await GetPagedODataResultsAsync(
+                    "RelationshipDefinitions/Microsoft.Dynamics.CRM.ManyToManyRelationshipMetadata?$select=SchemaName,Entity1LogicalName,Entity2LogicalName", 
+                    progress, "Relationships-NN").ConfigureAwait(false);
+                foreach (var el in manyToManyItems)
                 {
                     cache.Relationships.Add(new RelationshipCacheItem
                     {
@@ -267,7 +283,7 @@ namespace Utilities.SolutionDeepValidator.Engine
             try
             {
                 Report("Loading web resources...");
-                var items = await GetPagedODataResultsAsync("webresources?$select=webresourceid,name", progress, "WebResources").ConfigureAwait(false);
+                var items = await GetPagedODataResultsAsync("webresourceset?$select=webresourceid,name", progress, "WebResources").ConfigureAwait(false);
                 foreach (var el in items)
                 {
                     cache.WebResources.Add(new WebResourceCacheItem

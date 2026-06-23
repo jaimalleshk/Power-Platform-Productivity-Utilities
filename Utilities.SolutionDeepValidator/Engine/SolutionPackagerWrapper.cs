@@ -45,9 +45,80 @@ namespace Utilities.SolutionDeepValidator.Engine
                         ParseCustomizationsXml(entryStream, manifestData);
                     }
                 }
+
+                // 3. Parse security role files to populate Role Names
+                ParseRoleFiles(archive, manifestData);
             }
 
             return manifestData;
+        }
+
+        private void ParseRoleFiles(ZipArchive archive, SolutionManifestData data)
+        {
+            foreach (var entry in archive.Entries)
+            {
+                if (!entry.FullName.StartsWith("Roles/", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)) continue;
+
+                try
+                {
+                    using (var stream = entry.Open())
+                    {
+                        var doc = XDocument.Load(stream);
+                        var root = doc.Root;
+                        if (root != null)
+                        {
+                            string id = root.Attribute("id")?.Value ?? string.Empty;
+                            string name = root.Attribute("name")?.Value ?? string.Empty;
+
+                            if (string.IsNullOrEmpty(id))
+                            {
+                                id = root.Element("roleid")?.Value ?? string.Empty;
+                            }
+                            if (string.IsNullOrEmpty(name))
+                            {
+                                name = root.Element("name")?.Value ?? string.Empty;
+                                if (string.IsNullOrEmpty(name))
+                                {
+                                    name = root.Element("localizednames")
+                                        ?.XPathSelectElement("localizedname[@languagecode='1033']")
+                                        ?.Attribute("description")?.Value ?? string.Empty;
+                                }
+                            }
+
+                            id = id.Trim('{', '}');
+
+                            if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(name))
+                            {
+                                var component = data.Components.Find(c => 
+                                    c.ComponentType == 20 && 
+                                    Guid.TryParse(c.ComponentId, out var cGuid) &&
+                                    Guid.TryParse(id, out var idGuid) &&
+                                    cGuid == idGuid);
+
+                                if (component != null)
+                                {
+                                    component.Name = name;
+                                }
+                                else
+                                {
+                                    data.Components.Add(new SolutionComponentData
+                                    {
+                                        ComponentId = id,
+                                        Name = name,
+                                        Type = "Role",
+                                        ComponentType = 20
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore unparseable/corrupted role files
+                }
+            }
         }
 
         private void ParseSolutionXml(Stream stream, SolutionManifestData data)

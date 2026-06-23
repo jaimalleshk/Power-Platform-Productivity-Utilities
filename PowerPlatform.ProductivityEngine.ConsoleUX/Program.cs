@@ -288,6 +288,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 ).ConfigureAwait(false);
 
                 PrintValidationResult(result);
+                PrintReportPaths(outJson, outHtml, result.IsSuccess);
                 return result.IsSuccess ? 0 : 1;
             }
             catch (Exception ex)
@@ -702,18 +703,18 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                 if (r.Metrics.WarningsCount > 0)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("PASSED WITH WARNINGS ⚠️");
+                    Console.WriteLine("[PASSED WITH WARNINGS]");
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("PASSED ✅");
+                    Console.WriteLine("[PASSED]");
                 }
             }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("FAILED ❌");
+                Console.WriteLine("[FAILED]");
             }
             Console.ResetColor();
 
@@ -769,7 +770,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             Console.WriteLine("                       DISTILLATION SUMMARY                      ");
             Console.WriteLine("=================================================================");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("  Status:                COMPLETED DIRECT-ON-SERVER ✅");
+            Console.WriteLine("  Status:                COMPLETED DIRECT-ON-SERVER [COMPLETED]");
             Console.ResetColor();
             Console.WriteLine($"  Solution Name:         {report.SolutionName}");
             Console.WriteLine($"  Optimized Components:  {report.ComponentsRemoved.Count}");
@@ -784,6 +785,36 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                     Console.ResetColor();
                     Console.WriteLine($"{comp.LogicalName} ({comp.Type}) - {comp.Reason}");
                 }
+            }
+            Console.WriteLine("=================================================================");
+        }
+
+        private static void PrintReportPaths(string jsonPath, string htmlPath, bool isSuccess)
+        {
+            Console.WriteLine("=================================================================");
+            Console.Write("Result:              ");
+            if (isSuccess)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("VALIDATION COMPLETED SUCCESSFULLY");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("VALIDATION FAILED");
+            }
+            Console.ResetColor();
+            
+            Console.WriteLine("\nReports generated. Copy a path below and open it in a browser:");
+            try
+            {
+                Console.WriteLine($"HTML Report: {Path.GetFullPath(htmlPath)}");
+                Console.WriteLine($"JSON Report: {Path.GetFullPath(jsonPath)}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HTML Report: {htmlPath} (error resolving path: {ex.Message})");
+                Console.WriteLine($"JSON Report: {jsonPath} (error resolving path: {ex.Message})");
             }
             Console.WriteLine("=================================================================");
         }

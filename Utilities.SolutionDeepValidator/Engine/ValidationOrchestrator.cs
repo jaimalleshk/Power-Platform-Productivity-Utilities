@@ -29,6 +29,12 @@ namespace Utilities.SolutionDeepValidator.Engine
             _useSimulationMode = useSimulationMode;
         }
 
+        private static readonly JsonSerializerOptions PascalCaseJsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = null,
+            DictionaryKeyPolicy = null
+        };
+
         public async Task<ValidationResult> ExecuteValidationAsync(
             string solutionZipPath, 
             ConnectionProfile targetProfile, 
@@ -251,7 +257,7 @@ namespace Utilities.SolutionDeepValidator.Engine
                 ExportExternalApplications = false
             };
 
-            var response = await sourceClient.PostAsJsonAsync("ExportSolution", payload).ConfigureAwait(false);
+            var response = await sourceClient.PostAsJsonAsync("ExportSolution", payload, PascalCaseJsonOptions).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 string errContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -294,10 +300,13 @@ namespace Utilities.SolutionDeepValidator.Engine
 
             // Convert to Base64 for the StageSolution action payload
             string base64Zip = Convert.ToBase64String(zipBytes);
-            var payload = new { SolutionPackage = base64Zip };
+            var payload = new Dictionary<string, object>
+            {
+                ["CustomizationFile"] = base64Zip
+            };
 
             // 1. Post to StageSolution
-            var postResponse = await client.PostAsJsonAsync("StageSolution", payload).ConfigureAwait(false);
+            var postResponse = await client.PostAsJsonAsync("StageSolution", payload, PascalCaseJsonOptions).ConfigureAwait(false);
             if (!postResponse.IsSuccessStatusCode)
             {
                 string errorContent = await postResponse.Content.ReadAsStringAsync().ConfigureAwait(false);

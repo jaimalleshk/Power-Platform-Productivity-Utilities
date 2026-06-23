@@ -19,6 +19,12 @@ namespace Utilities.SolutionRepairDistiller.Engine
         private readonly HttpClient? _httpClient;
         private readonly bool _useSimulationMode;
 
+        private static readonly JsonSerializerOptions PascalCaseJsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = null,
+            DictionaryKeyPolicy = null
+        };
+
         public SolutionPruner(HttpClient? httpClient = null, bool useSimulationMode = false)
         {
             _httpClient = httpClient;
@@ -263,7 +269,7 @@ namespace Utilities.SolutionRepairDistiller.Engine
                 }
                 else
                 {
-                    var res = await _httpClient!.PostAsJsonAsync(removeUrl, removePayload).ConfigureAwait(false);
+                    var res = await _httpClient!.PostAsJsonAsync(removeUrl, removePayload, PascalCaseJsonOptions).ConfigureAwait(false);
                     if (!res.IsSuccessStatusCode)
                     {
                         string err = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -289,7 +295,7 @@ namespace Utilities.SolutionRepairDistiller.Engine
                 }
                 else
                 {
-                    var res = await _httpClient!.PostAsJsonAsync(addUrl, addPayload).ConfigureAwait(false);
+                    var res = await _httpClient!.PostAsJsonAsync(addUrl, addPayload, PascalCaseJsonOptions).ConfigureAwait(false);
                     if (!res.IsSuccessStatusCode)
                     {
                         string err = await res.Content.ReadAsStringAsync().ConfigureAwait(false);

@@ -774,17 +774,27 @@ namespace Utilities.SolutionDeepValidator.Validators
 
             foreach (var comp in manifest.Components)
             {
-                if (comp.ComponentType == 20) // Security Role (approx type code)
+                if (comp.ComponentType == 20) // Security Role
                 {
-                    if (cache.SecurityRoles.Any(r => r.Name.Equals(comp.Name, StringComparison.OrdinalIgnoreCase) || r.RoleId.Equals(comp.ComponentId, StringComparison.OrdinalIgnoreCase)))
+                    // Find matching role in target cache (by ID or Name)
+                    var cacheMatch = cache.SecurityRoles.FirstOrDefault(r => 
+                        (!string.IsNullOrEmpty(comp.Name) && r.Name.Equals(comp.Name, StringComparison.OrdinalIgnoreCase)) || 
+                        r.RoleId.Equals(comp.ComponentId, StringComparison.OrdinalIgnoreCase) ||
+                        (Guid.TryParse(r.RoleId, out var rGuid) && Guid.TryParse(comp.ComponentId, out var cGuid) && rGuid == cGuid));
+
+                    string displayName = !string.IsNullOrEmpty(comp.Name)
+                        ? comp.Name
+                        : (cacheMatch?.Name ?? comp.ComponentId);
+
+                    if (cacheMatch != null)
                     {
                         issues.Add(new ValidationIssue
                         {
                             Id = "SECURITY_ROLE_EXISTS",
                             Severity = "Info",
                             ComponentType = "Role",
-                            LogicalName = comp.Name,
-                            Description = $"Security role '{comp.Name}' already exists. Privileges will be merged on import."
+                            LogicalName = displayName,
+                            Description = $"Security role '{displayName}' already exists. Privileges will be merged on import."
                         });
                     }
                     else
@@ -794,8 +804,8 @@ namespace Utilities.SolutionDeepValidator.Validators
                             Id = "SECURITY_ROLE_NEW",
                             Severity = "Info",
                             ComponentType = "Role",
-                            LogicalName = comp.Name,
-                            Description = $"Security role '{comp.Name}' is new and will be created."
+                            LogicalName = displayName,
+                            Description = $"Security role '{displayName}' is new and will be created."
                         });
                     }
                 }

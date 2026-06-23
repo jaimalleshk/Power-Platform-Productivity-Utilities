@@ -16,6 +16,12 @@ namespace Utilities.SolutionRepairDistiller.Engine
         private readonly IConnectionFactory _connectionFactory;
         private readonly bool _useSimulationMode;
 
+        private static readonly JsonSerializerOptions PascalCaseJsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = null,
+            DictionaryKeyPolicy = null
+        };
+
         public SolutionRepairer(IConnectionFactory? connectionFactory = null, bool useSimulationMode = false)
         {
             _connectionFactory = connectionFactory ?? new DataverseConnectionFactory();
@@ -154,7 +160,7 @@ namespace Utilities.SolutionRepairDistiller.Engine
             try
             {
                 string actionUrl = $"{entitySetName}({guid})/Microsoft.Dynamics.CRM.RemoveActiveCustomizations";
-                var res = await targetClient!.PostAsJsonAsync(actionUrl, new { }).ConfigureAwait(false);
+                var res = await targetClient!.PostAsJsonAsync(actionUrl, new { }, PascalCaseJsonOptions).ConfigureAwait(false);
                 
                 if (res.IsSuccessStatusCode)
                 {
@@ -218,7 +224,7 @@ namespace Utilities.SolutionRepairDistiller.Engine
 
             try
             {
-                var res = await sourceClient!.PostAsJsonAsync("AddSolutionComponent", addPayload).ConfigureAwait(false);
+                var res = await sourceClient!.PostAsJsonAsync("AddSolutionComponent", addPayload, PascalCaseJsonOptions).ConfigureAwait(false);
                 if (res.IsSuccessStatusCode)
                 {
                     progress?.Report(new ProgressUpdate { Stage = "Solution Repairer", Message = $"Successfully added dependency '{issue.LogicalName}' (Type {typeCode}) to source solution '{solutionName}'.", Status = ProgressStatus.Info });
