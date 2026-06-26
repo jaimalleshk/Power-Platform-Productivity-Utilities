@@ -141,6 +141,23 @@ dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- repair --repo
 dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- repair --report validation_report.json --url "https://target-prod.crm.dynamics.com" --src-url "https://source-dev.crm.dynamics.com" --solution "MySolution" --interactive
 ```
 
+### 4. User Multienvironment Management (`role`)
+Audits and manages user environment access, security roles, and Business Units across multiple tenant environments.
+```powershell
+# Run a simulated consolidated report of user roles and BU alignment across all environments
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role report --email "user1@contoso.com,user2@contoso.com" --all --simulate
+
+# Audit who has "System Administrator" or other roles across all environments in a tenant
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role audit --role "System Administrator" --all --simulate
+
+# Transfer a user's Business Unit and assign corresponding roles globally
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role assign --email "user@contoso.com" --role "Salesperson" --bu "Europe BU" --all --simulate
+
+# Assign a role to users in a specific environment only
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role assign --email "user1@contoso.com" --role "Salesperson" --env "contoso-dev" --simulate
+```
+
+
 ---
 
 ## 🧪 Testing and Verification

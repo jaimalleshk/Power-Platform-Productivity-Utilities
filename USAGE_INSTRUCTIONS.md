@@ -102,3 +102,64 @@ dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- repair --repo
 ```powershell
 dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- repair --report validation_report.json --url "https://prod-target.crm.dynamics.com" --src-url "https://dev-source.crm.dynamics.com" --solution "CoreSales" --interactive
 ```
+
+---
+
+## 4. User Multienvironment Management (`role`)
+
+Audits and manages user environment assignments, security roles, and Business Units (BUs) across multiple environments in the tenant.
+
+### Syntax
+```powershell
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role <sub-action> [Options]
+```
+
+### Sub-actions
+*   `report`: Crawl environments and generate a consolidated report of user roles and Business Units.
+*   `audit`: Find all users who are assigned specific roles or belong to specific Business Units.
+*   `assign`: Assign a security role to users or transfer users to a new Business Unit.
+*   `remove`: Remove a security role assignment from users.
+
+### Parameters
+*   `--email <list>`: Comma-separated list of target user email addresses (e.g. `user1@contoso.com,user2@contoso.com`).
+*   `--role <list>`: Security role name(s) (comma-separated for audits, single name for assignments/removals).
+*   `--bu <list>`: Business Unit name(s) (comma-separated for audits, single name for transfers).
+*   `--env <name>`: Filter operations or reports to a single environment unique name (e.g. `contoso-dev`).
+*   `--all`: Scan or apply changes across all discovered environments in the tenant.
+*   `--simulate`: Run in dry-run mode (prints planned actions to the console without writing changes).
+*   `--out-json <path>`: Destination path for the JSON report (defaults to `user_role_report.json`).
+*   `--out-html <path>`: Destination path for the interactive HTML matrix dashboard (defaults to `user_role_report.html`).
+*   `--url <url>`: Discovery environment Web API URL (used to fetch the list of environments via Global Discovery).
+*   `--connstr <connection-string>`: Explicit connection string for the discovery environment.
+
+### Examples
+**Generate Consolidated User Role Matrix across All Environments (Simulation):**
+```powershell
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role report --email "user1@contoso.com,user2@contoso.com" --all --simulate
+```
+
+**Audit Tenant-Wide Users with the "System Administrator" Role:**
+```powershell
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role audit --role "System Administrator" --all --interactive --url "https://my-disco-org.crm.dynamics.com"
+```
+
+**Audit Tenant-Wide Users in specific Business Units:**
+```powershell
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role audit --bu "Sales BU,Marketing BU" --all --simulate
+```
+
+**Bulk Assign "Salesperson" Role to Users in a specific Dev Environment:**
+```powershell
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role assign --email "user1@contoso.com,user2@contoso.com" --role "Salesperson" --env "contoso-dev" --interactive --url "https://mydisco.crm.dynamics.com"
+```
+
+**Bulk Transfer Business Unit (with role assignment) across All Environments:**
+```powershell
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role assign --email "user@contoso.com" --role "Salesperson" --bu "Europe BU" --all --simulate
+```
+
+**Bulk Remove "Salesperson" Role across All Environments:**
+```powershell
+dotnet run --project PowerPlatform.ProductivityEngine.ConsoleUX -- role remove --email "user@contoso.com" --role "Salesperson" --all --simulate
+```
+
