@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -12,6 +12,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Resilience.Tests", "Core.Resilience.Tests\Core.Resilience.Tests.csproj", "{70555984-4DB6-41C4-8297-C2BBB7BC7831}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PowerPlatform.ProductivityEngine.ConsoleUX", "PowerPlatform.ProductivityEngine.ConsoleUX\PowerPlatform.ProductivityEngine.ConsoleUX.csproj", "{5D3F1B5A-DC28-411F-97EB-D8F3560B647B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities.UserMultiEnvManager", "Utilities.UserMultiEnvManager\Utilities.UserMultiEnvManager.csproj", "{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,5 +44,9 @@ Global
 		{5D3F1B5A-DC28-411F-97EB-D8F3560B647B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5D3F1B5A-DC28-411F-97EB-D8F3560B647B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5D3F1B5A-DC28-411F-97EB-D8F3560B647B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

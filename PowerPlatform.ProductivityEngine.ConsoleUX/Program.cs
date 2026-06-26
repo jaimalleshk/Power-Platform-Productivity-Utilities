@@ -9,6 +9,8 @@ using Utilities.SolutionDeepValidator.Engine;
 using Utilities.SolutionDeepValidator.Models;
 using Utilities.SolutionRepairDistiller.Engine;
 using Utilities.SolutionRepairDistiller.Models;
+using Utilities.UserMultiEnvManager.Engine;
+using Utilities.UserMultiEnvManager.Models;
 
 namespace PowerPlatform.ProductivityEngine.ConsoleUX
 {
@@ -74,6 +76,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                         return await RunDistillAsync(subcommandArgs).ConfigureAwait(false);
                     case "repair":
                         return await RunRepairAsync(subcommandArgs).ConfigureAwait(false);
+                    case "role":
+                        return await RunRoleAsync(subcommandArgs).ConfigureAwait(false);
                     default:
                         SafeSetForegroundColor(ConsoleColor.Red);
                         Console.WriteLine($"[ERROR] Unknown command '{args[commandIndex]}'. Use 'help' to see list of valid commands.");
@@ -101,6 +105,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             Console.WriteLine("  validate   Validates solution ZIP packages or source exported solutions against target metadata.");
             Console.WriteLine("  distill    Optimizes OOB bloated entities on server or repairs XML corruptions in local ZIPs.");
             Console.WriteLine("  repair     Parses a validation report and applies fixes (layer removal, dependency bundling).");
+            Console.WriteLine("  role       Multi-environment user roles & business unit reporting and assignments.");
             Console.ResetColor();
 
             Console.WriteLine("\nGeneral Global Options:");
@@ -139,6 +144,16 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             Console.WriteLine("  --solution <name>   Solution unique name.");
             Console.WriteLine("  --interactive       Use interactive authentication.");
             Console.WriteLine("  --simulate          Run in offline simulation mode.");
+
+            Console.WriteLine("\nOptions for 'role' subcommands (report, audit, assign, remove):");
+            Console.WriteLine("  --email <list>      Comma-separated list of target user emails/domainnames.");
+            Console.WriteLine("  --role <list>       Security role name(s) (comma-separated for audits, single for assignments).");
+            Console.WriteLine("  --bu <list>         Business Unit name(s) (comma-separated for audits, single for transfers).");
+            Console.WriteLine("  --env <name>        Filter operations/reports to a single environment unique name.");
+            Console.WriteLine("  --all               Run audit/reports across all discovered environments in tenant.");
+            Console.WriteLine("  --simulate          Run in dry-run mode (print planned actions without executing).");
+            Console.WriteLine("  --out-json <path>   Output JSON report path (default: user_role_report.json).");
+            Console.WriteLine("  --out-html <path>   Output HTML report path (default: user_role_report.html).");
             Console.WriteLine();
         }
 
@@ -806,6 +821,339 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             Console.ResetColor();
             
             Console.WriteLine("\nReports generated. Copy a path below and open it in a browser:");
+            try
+            {
+                Console.WriteLine($"HTML Report: {Path.GetFullPath(htmlPath)}");
+                Console.WriteLine($"JSON Report: {Path.GetFullPath(jsonPath)}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HTML Report: {htmlPath} (error resolving path: {ex.Message})");
+                Console.WriteLine($"JSON Report: {jsonPath} (error resolving path: {ex.Message})");
+            }
+            Console.WriteLine("=================================================================");
+        }
+
+        private static async Task<int> RunRoleAsync(string[] args)
+        {
+            string subAction = "";
+            List<string> emails = new();
+            List<string> roles = new();
+            List<string> bus = new();
+            string envFilter = "";
+            bool allEnvs = false;
+            bool simulate = false;
+            string outHtml = "";
+            string outJson = "";
+            bool interactive = true;
+            string envUrl = "";
+            string connString = "";
+            string clientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
+            string tenantId = "";
+            string redirectUri = "http://localhost";
+            string loginHint = "";
+
+            if (args.Length > 0)
+            {
+                subAction = args[0].ToLower();
+            }
+
+            for (int i = 1; i < args.Length; i++)
+            {
+                string arg = args[i].Replace("—", "--").ToLower();
+                switch (arg)
+                {
+                    case "--email":
+                    case "-email":
+                    case "--emails":
+                    case "-emails":
+                        if (i + 1 < args.Length)
+                        {
+                            emails.AddRange(args[++i].Split(',').Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)));
+                        }
+                        break;
+                    case "--role":
+                    case "-role":
+                    case "--roles":
+                    case "-roles":
+                        if (i + 1 < args.Length)
+                        {
+                            roles.AddRange(args[++i].Split(',').Select(r => r.Trim()).Where(r => !string.IsNullOrEmpty(r)));
+                        }
+                        break;
+                    case "--bu":
+                    case "-bu":
+                    case "--bus":
+                    case "-bus":
+                        if (i + 1 < args.Length)
+                        {
+                            bus.AddRange(args[++i].Split(',').Select(b => b.Trim()).Where(b => !string.IsNullOrEmpty(b)));
+                        }
+                        break;
+                    case "--env":
+                    case "-env":
+                    case "--envs":
+                    case "-envs":
+                        if (i + 1 < args.Length)
+                        {
+                            envFilter = args[++i].Trim();
+                        }
+                        break;
+                    case "--all":
+                    case "-all":
+                        allEnvs = true;
+                        break;
+                    case "--simulate":
+                    case "-simulate":
+                        simulate = true;
+                        break;
+                    case "--out-html":
+                    case "-out-html":
+                        if (i + 1 < args.Length) outHtml = args[++i];
+                        break;
+                    case "--out-json":
+                    case "-out-json":
+                        if (i + 1 < args.Length) outJson = args[++i];
+                        break;
+                    case "--url":
+                    case "-url":
+                        if (i + 1 < args.Length) envUrl = args[++i];
+                        break;
+                    case "--connstr":
+                    case "-connstr":
+                        if (i + 1 < args.Length) connString = args[++i];
+                        break;
+                    case "--interactive":
+                    case "-interactive":
+                        if (i + 1 < args.Length && (args[i + 1].ToLower() == "false" || args[i + 1].ToLower() == "true"))
+                        {
+                            interactive = bool.Parse(args[++i]);
+                        }
+                        else
+                        {
+                            interactive = true;
+                        }
+                        break;
+                    case "--client-id":
+                    case "-client-id":
+                        if (i + 1 < args.Length) clientId = args[++i];
+                        break;
+                    case "--tenant":
+                    case "-tenant":
+                        if (i + 1 < args.Length) tenantId = args[++i];
+                        break;
+                    case "--redirect-uri":
+                    case "-redirect-uri":
+                        if (i + 1 < args.Length) redirectUri = args[++i];
+                        break;
+                    case "--login-hint":
+                    case "-login-hint":
+                        if (i + 1 < args.Length) loginHint = args[++i];
+                        break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(envUrl) && string.IsNullOrEmpty(connString))
+            {
+                simulate = true;
+                envUrl = "https://simulation-env.crm.dynamics.com";
+            }
+
+            var profile = new ConnectionProfile
+            {
+                EnvironmentUrl = envUrl,
+                ConnectionString = connString,
+                UseInteractiveAuth = interactive,
+                ClientId = clientId,
+                TenantId = tenantId,
+                RedirectUri = redirectUri,
+                LoginHint = loginHint,
+                TimeoutSeconds = 60
+            };
+
+            var disco = new EnvironmentDiscovery();
+            var crawler = new UserRoleCrawler();
+            var assignmentEngine = new RoleAssignmentEngine();
+            var comparer = new RoleComparer();
+
+            Action<string> log = msg =>
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.Write("[ROLE] ");
+                Console.ResetColor();
+                Console.WriteLine(msg);
+            };
+
+            try
+            {
+                var discovered = await disco.DiscoverEnvironmentsAsync(profile, log).ConfigureAwait(false);
+                if (discovered == null || discovered.Count == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("[ERROR] No target environments discovered or resolved. Execution aborted.");
+                    Console.ResetColor();
+                    return 1;
+                }
+
+                List<InstanceDto> targets;
+                if (!allEnvs && !string.IsNullOrEmpty(envFilter))
+                {
+                    targets = discovered.Where(d => d.UniqueName.Equals(envFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (targets.Count == 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"[WARNING] Filter environment '{envFilter}' was not found. Using all discovered environments.");
+                        Console.ResetColor();
+                        targets = discovered;
+                    }
+                }
+                else
+                {
+                    targets = discovered;
+                }
+
+                log($"Target environment scope: {string.Join(", ", targets.Select(t => t.UniqueName))}");
+
+                switch (subAction)
+                {
+                    case "report":
+                        if (emails.Count == 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("[ERROR] '--email' must be specified for 'report' subcommand.");
+                            Console.ResetColor();
+                            return 1;
+                        }
+                        if (string.IsNullOrEmpty(outHtml)) outHtml = "user_role_report.html";
+                        if (string.IsNullOrEmpty(outJson)) outJson = "user_role_report.json";
+
+                        var userReport = await crawler.CrawlUsersAsync(targets, profile, emails, log).ConfigureAwait(false);
+                        comparer.ExportReportToJson(outJson, userReport);
+                        comparer.ExportUserRoleReportToHtml(outHtml, userReport);
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("\n[SUCCESS] User role and BU report completed successfully.");
+                        Console.ResetColor();
+                        PrintPaths(outJson, outHtml);
+                        break;
+
+                    case "audit":
+                        if (roles.Count == 0 && bus.Count == 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("[ERROR] Either '--role' or '--bu' must be specified for 'audit' subcommand.");
+                            Console.ResetColor();
+                            return 1;
+                        }
+
+                        if (roles.Count > 0)
+                        {
+                            if (string.IsNullOrEmpty(outHtml)) outHtml = "role_audit_report.html";
+                            if (string.IsNullOrEmpty(outJson)) outJson = "role_audit_report.json";
+
+                            var roleReport = await crawler.AuditRolesAsync(targets, profile, roles, log).ConfigureAwait(false);
+                            comparer.ExportReportToJson(outJson, roleReport);
+                            comparer.ExportRoleAuditReportToHtml(outHtml, roleReport);
+
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine("\n[SUCCESS] Security role compliance audit completed successfully.");
+                            Console.ResetColor();
+                            PrintPaths(outJson, outHtml);
+                        }
+                        else
+                        {
+                            if (string.IsNullOrEmpty(outHtml)) outHtml = "bu_audit_report.html";
+                            if (string.IsNullOrEmpty(outJson)) outJson = "bu_audit_report.json";
+
+                            var buReport = await crawler.AuditBusAsync(targets, profile, bus, log).ConfigureAwait(false);
+                            comparer.ExportReportToJson(outJson, buReport);
+                            comparer.ExportBuAuditReportToHtml(outHtml, buReport);
+
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine("\n[SUCCESS] Business Unit compliance audit completed successfully.");
+                            Console.ResetColor();
+                            PrintPaths(outJson, outHtml);
+                        }
+                        break;
+
+                    case "assign":
+                        if (emails.Count == 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("[ERROR] '--email' must be specified.");
+                            Console.ResetColor();
+                            return 1;
+                        }
+                        if (roles.Count == 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("[ERROR] '--role' must be specified.");
+                            Console.ResetColor();
+                            return 1;
+                        }
+
+                        string targetRole = roles.First();
+                        if (bus.Count > 0)
+                        {
+                            string targetBu = bus.First();
+                            await assignmentEngine.SetBusinessUnitAsync(targets, profile, emails, targetBu, targetRole, simulate, log).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await assignmentEngine.AssignRoleAsync(targets, profile, emails, targetRole, simulate, log).ConfigureAwait(false);
+                        }
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"\n[SUCCESS] Role assignment operation completed.");
+                        Console.ResetColor();
+                        break;
+
+                    case "remove":
+                        if (emails.Count == 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("[ERROR] '--email' must be specified.");
+                            Console.ResetColor();
+                            return 1;
+                        }
+                        if (roles.Count == 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("[ERROR] '--role' must be specified.");
+                            Console.ResetColor();
+                            return 1;
+                        }
+
+                        string roleToRemove = roles.First();
+                        await assignmentEngine.RemoveRoleAsync(targets, profile, emails, roleToRemove, simulate, log).ConfigureAwait(false);
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"\n[SUCCESS] Role removal operation completed.");
+                        Console.ResetColor();
+                        break;
+
+                    default:
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"[ERROR] Unknown role sub-action '{subAction}'. Valid actions: report, audit, assign, remove.");
+                        Console.ResetColor();
+                        return 1;
+                }
+
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n[ERROR] Role subcommand failed: {ex.Message}");
+                Console.ResetColor();
+                return 1;
+            }
+        }
+
+        private static void PrintPaths(string jsonPath, string htmlPath)
+        {
+            Console.WriteLine("=================================================================");
+            Console.WriteLine("Reports generated. Copy a path below and open it in a browser:");
             try
             {
                 Console.WriteLine($"HTML Report: {Path.GetFullPath(htmlPath)}");

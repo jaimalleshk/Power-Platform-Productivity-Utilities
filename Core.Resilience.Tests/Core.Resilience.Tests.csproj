@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PowerPlatform.ProductivityEngine.Core\PowerPlatform.ProductivityEngine.Core.csproj" />
     <ProjectReference Include="..\Utilities.SolutionDeepValidator\Utilities.SolutionDeepValidator.csproj" />
+    <ProjectReference Include="..\Utilities.UserMultiEnvManager\Utilities.UserMultiEnvManager.csproj" />
   </ItemGroup>
 
 </Project>
