@@ -66,36 +66,48 @@
                     <Border Grid.Column="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,12,0" BorderBrush="#334155" BorderThickness="1">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="200" MinHeight="100"/>
+                                <RowDefinition Height="5"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
                             <!-- SEARCHABLE DISCOVERED ENVIRONMENTS -->
-                            <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                                <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                    <TextBlock Text="🌐 DISCOVERED ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                            <Grid Grid.Row="0" Margin="0,0,0,4">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,4" LastChildFill="False">
+                                    <TextBlock Text="🌐 ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                        <Button Content="☑️ Select All" Command="{Binding SelectAllEnvsCommand}" Background="#334155" Foreground="White" Padding="6,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
-                                        <Button Content="🔲 Select None" Command="{Binding SelectNoneEnvsCommand}" Background="#334155" Foreground="White" Padding="6,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
-                                        <Button Content="➕ Add URL" Command="{Binding AddManualEnvCommand}" Background="#0284C7" Foreground="White" Padding="6,2" FontSize="10" BorderThickness="0"/>
+                                        <Button Content="🛡️ Check Admin" Command="{Binding CheckAdminAccessCommand}" Background="#4338CA" Foreground="White" Padding="5,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0" ToolTip="Check System Administrator role access across tenant environments"/>
+                                        <Button Content="☑️ All" Command="{Binding SelectAllEnvsCommand}" Background="#334155" Foreground="White" Padding="5,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                        <Button Content="🔲 None" Command="{Binding SelectNoneEnvsCommand}" Background="#334155" Foreground="White" Padding="5,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                        <Button Content="➕ Add" Command="{Binding AddManualEnvCommand}" Background="#0284C7" Foreground="White" Padding="5,2" FontSize="10" BorderThickness="0"/>
                                     </StackPanel>
                                 </DockPanel>
 
                                 <!-- Search / Filter Box -->
-                                <TextBox Text="{Binding EnvSearchText, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,4" Margin="0,0,0,6" FontSize="12"/>
+                                <TextBox Grid.Row="1" Text="{Binding EnvSearchText, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,4" Margin="0,0,0,6" FontSize="12"/>
 
-                                <ListBox ItemsSource="{Binding FilteredEnvironments}" Background="#0F172A" BorderBrush="#334155" Height="110">
+                                <!-- Resizable ListBox -->
+                                <ListBox Grid.Row="2" ItemsSource="{Binding FilteredEnvironments}" Background="#0F172A" BorderBrush="#334155">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Foreground="#F8FAFC" Margin="4,2" ToolTip="{Binding Url}"/>
+                                            <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}" Foreground="#F8FAFC" Margin="4,2" ToolTip="{Binding Url}"/>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                            </StackPanel>
+                            </Grid>
+
+                            <!-- Adjustable Vertical GridSplitter -->
+                            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="#334155" Cursor="SizeNS"/>
 
                             <!-- Solution Explorer Controls Header -->
-                            <DockPanel Grid.Row="1" Margin="0,0,0,6" LastChildFill="False">
+                            <DockPanel Grid.Row="2" Margin="0,6,0,6" LastChildFill="False">
                                 <TextBlock Text="📁 SOLUTION EXPLORER TREE" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                     <Button Content="🔄 Run Compare" Command="{Binding CompareEnvironmentsCommand}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="8,3" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
@@ -105,7 +117,7 @@
                             </DockPanel>
 
                             <!-- Unified Root 1 & Root 2 TreeView -->
-                            <TreeView Grid.Row="2" ItemsSource="{Binding UnifiedSolutionExplorerTree}" SelectedItemChanged="TreeView_SelectedItemChanged" Background="#0F172A" Foreground="#F8FAFC" BorderThickness="0">
+                            <TreeView Grid.Row="3" ItemsSource="{Binding UnifiedSolutionExplorerTree}" SelectedItemChanged="TreeView_SelectedItemChanged" Background="#0F172A" Foreground="#F8FAFC" BorderThickness="0">
                                 <TreeView.ItemContainerStyle>
                                     <Style TargetType="TreeViewItem">
                                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>

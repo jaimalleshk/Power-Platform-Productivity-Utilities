@@ -4,6 +4,10 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -24,8 +28,34 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
     public class SelectableEnv : INotifyPropertyChanged
     {
         private bool _isSelected;
-        public string Name { get; set; } = string.Empty;
+        private bool _isAdmin;
+        private string _rawName = string.Empty;
+
+        public string RawName
+        {
+            get => _rawName;
+            set
+            {
+                _rawName = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+
         public string Url { get; set; } = string.Empty;
+
+        public bool IsAdmin
+        {
+            get => _isAdmin;
+            set
+            {
+                _isAdmin = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+
+        public string DisplayName => IsAdmin ? $"{RawName} (Admin)" : RawName;
 
         public bool IsSelected
         {
@@ -226,6 +256,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public ICommand AddManualEnvCommand { get; }
         public ICommand SelectAllEnvsCommand { get; }
         public ICommand SelectNoneEnvsCommand { get; }
+        public ICommand CheckAdminAccessCommand { get; }
         public ICommand ExpandAllCommand { get; }
         public ICommand CollapseAllCommand { get; }
         public ICommand ExportHtmlCommand { get; }
@@ -261,6 +292,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             AddManualEnvCommand = new RelayCommand(_ => AddManualEnvironment());
             SelectAllEnvsCommand = new RelayCommand(_ => SetAllEnvsSelected(true));
             SelectNoneEnvsCommand = new RelayCommand(_ => SetAllEnvsSelected(false));
+            CheckAdminAccessCommand = new RelayCommand(async _ => await CheckAdminAccessAsync());
+
             ExpandAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, true));
             CollapseAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, false));
 
@@ -285,15 +318,14 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             ExportRoleExcelCommand = new RelayCommand(_ => ExportRoleExcel());
 
             // Initial Sample Data
-            AddEnvironmentToList("contoso-dev", "https://contoso-dev.crm.dynamics.com", true);
-            AddEnvironmentToList("contoso-test", "https://contoso-test.crm.dynamics.com", true);
-            AddEnvironmentToList("contoso-prod", "https://contoso-prod.crm.dynamics.com", true);
+            AddEnvironmentToList("contoso-dev", "https://contoso-dev.crm.dynamics.com", true, isAdmin: true);
+            AddEnvironmentToList("contoso-test", "https://contoso-test.crm.dynamics.com", true, isAdmin: false);
+            AddEnvironmentToList("contoso-prod", "https://contoso-prod.crm.dynamics.com", true, isAdmin: false);
         }
 
-        private void AddEnvironmentToList(string name, string url, bool isSelected)
+        private void AddEnvironmentToList(string name, string url, bool isSelected, bool isAdmin = false)
         {
-            var env = new SelectableEnv { Name = name, Url = url, IsSelected = isSelected };
-            env.PropertyChanged += (s, e) => ApplyEnvFilter();
+            var env = new SelectableEnv { RawName = name, Url = url, IsSelected = isSelected, IsAdmin = isAdmin };
             AllDiscoveredEnvironments.Add(env);
             ApplyEnvFilter();
         }
@@ -306,7 +338,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             if (!string.IsNullOrWhiteSpace(EnvSearchText))
             {
                 string term = EnvSearchText.Trim().ToLowerInvariant();
-                query = query.Where(e => e.Name.ToLowerInvariant().Contains(term) || e.Url.ToLowerInvariant().Contains(term));
+                query = query.Where(e => e.RawName.ToLowerInvariant().Contains(term) || e.Url.ToLowerInvariant().Contains(term));
             }
 
             foreach (var env in query)
@@ -317,9 +349,109 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         private void SetAllEnvsSelected(bool selected)
         {
-            foreach (var env in FilteredEnvironments)
+            // Iterate over a snapshot list to prevent collection modification during enumeration crash
+            var snapshot = FilteredEnvironments.ToList();
+            foreach (var env in snapshot)
             {
                 env.IsSelected = selected;
+            }
+        }
+
+        public async Task CheckAdminAccessAsync()
+        {
+            if (AllDiscoveredEnvironments.Count == 0)
+            {
+                StatusMessage = "No environments to check.";
+                return;
+            }
+
+            IsLoading = true;
+            ProgressPercentage = 10;
+            ProgressDetails = "Checking System Administrator role privileges across environments...";
+            StatusMessage = ProgressDetails;
+
+            int adminCount = 0;
+            try
+            {
+                var authProvider = new MsalAuthenticationProvider(username: UserEmail);
+
+                for (int i = 0; i < AllDiscoveredEnvironments.Count; i++)
+                {
+                    var env = AllDiscoveredEnvironments[i];
+                    ProgressPercentage = (double)(i + 1) / AllDiscoveredEnvironments.Count * 100;
+                    ProgressDetails = $"Checking Admin role for {env.RawName} ({env.Url})...";
+
+                    bool isAdmin = false;
+
+                    if (IsSimulationMode)
+                    {
+                        await Task.Delay(300).ConfigureAwait(true);
+                        isAdmin = env.RawName.Contains("dev") || env.RawName.Contains("sandbox") || i == 0;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var profile = new ConnectionProfile { EnvironmentUrl = env.Url, UseInteractiveAuth = true };
+                            string token = await authProvider.GetAccessTokenAsync(profile).ConfigureAwait(true);
+
+                            using var client = new HttpClient();
+                            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                            // 1. Query WhoAmI
+                            var whoAmIRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/WhoAmI").ConfigureAwait(true);
+                            if (whoAmIRes.IsSuccessStatusCode)
+                            {
+                                using var doc = await whoAmIRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(true);
+                                if (doc != null && doc.RootElement.TryGetProperty("UserId", out var userIdProp))
+                                {
+                                    string userId = userIdProp.GetString() ?? "";
+
+                                    // 2. Query user's assigned security roles
+                                    var rolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/systemuserroles_association?$select=name").ConfigureAwait(true);
+                                    if (rolesRes.IsSuccessStatusCode)
+                                    {
+                                        using var rolesDoc = await rolesRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(true);
+                                        if (rolesDoc != null && rolesDoc.RootElement.TryGetProperty("value", out var valueArr) && valueArr.ValueKind == JsonValueKind.Array)
+                                        {
+                                            foreach (var roleItem in valueArr.EnumerateArray())
+                                            {
+                                                if (roleItem.TryGetProperty("name", out var nameProp) && 
+                                                    "System Administrator".Equals(nameProp.GetString(), StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    isAdmin = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // If direct role check fails, default to existing or non-admin
+                            isAdmin = env.IsAdmin;
+                        }
+                    }
+
+                    env.IsAdmin = isAdmin;
+                    if (isAdmin) adminCount++;
+                }
+
+                ApplyEnvFilter();
+                ProgressPercentage = 100;
+                ProgressDetails = $"Admin check complete. Identified {adminCount} environment(s) with System Administrator privileges.";
+                StatusMessage = ProgressDetails;
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Admin check failed: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
             }
         }
 
@@ -375,12 +507,12 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     AllDiscoveredEnvironments.Clear();
                     foreach (var env in envs)
                     {
-                        AddEnvironmentToList(env.Name, env.Url, true);
+                        AddEnvironmentToList(env.Name, env.Url, true, isAdmin: false);
                     }
 
                     ProgressPercentage = 100;
                     ProgressDetails = $"Successfully discovered {AllDiscoveredEnvironments.Count} real tenant environments!";
-                    StatusMessage = $"Discovered {AllDiscoveredEnvironments.Count} real tenant environments for {UserEmail}. Select target environments to explore or compare.";
+                    StatusMessage = $"Discovered {AllDiscoveredEnvironments.Count} real tenant environments for {UserEmail}. Click '🛡️ Check Admin' to identify Admin privileges.";
                 }
                 else
                 {
@@ -415,9 +547,9 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             bool isSingleEnv = selectedEnvs.Count == 1;
             IsLoading = true;
             ProgressPercentage = 0;
-            ProgressDetails = isSingleEnv ? $"Exploring single environment ({selectedEnvs[0].Name})..." : $"Comparing {selectedEnvs.Count} environments...";
+            ProgressDetails = isSingleEnv ? $"Exploring single environment ({selectedEnvs[0].DisplayName})..." : $"Comparing {selectedEnvs.Count} environments...";
             StatusMessage = isSingleEnv 
-                ? $"Exploring single environment ({selectedEnvs[0].Name})..." 
+                ? $"Exploring single environment ({selectedEnvs[0].DisplayName})..." 
                 : $"Comparing {selectedEnvs.Count} environments via D365 Web API / OAuth...";
 
             UnifiedSolutionExplorerTree.Clear();
@@ -489,7 +621,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
                 ProgressPercentage = 100;
                 ProgressDetails = isSingleEnv
-                    ? $"Exploration complete for {selectedEnvs[0].Name}. Total components: {TotalItems}."
+                    ? $"Exploration complete for {selectedEnvs[0].DisplayName}. Total components: {TotalItems}."
                     : $"Comparison complete across {selectedEnvs.Count} environments. Found {_lastResult.DeltaCount} Deltas, {_lastResult.UniqueCount} Unique items.";
 
                 StatusMessage = ProgressDetails;
@@ -523,7 +655,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
                 if (!AllDiscoveredEnvironments.Any(e => e.Url.Equals(url, StringComparison.OrdinalIgnoreCase)))
                 {
-                    AddEnvironmentToList(friendlyName, url, true);
+                    AddEnvironmentToList(friendlyName, url, true, isAdmin: true);
                     StatusMessage = $"Added environment '{friendlyName}' ({url}). Select environments and click '🔄 Run Compare / Explore'.";
                 }
             }
@@ -543,7 +675,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             IsLoading = true;
             ProgressPercentage = 10;
             ProgressDetails = isSingle
-                ? $"Executing 19 Deep Validation Checkers against {selectedEnvs[0].Name}..."
+                ? $"Executing 19 Deep Validation Checkers against {selectedEnvs[0].DisplayName}..."
                 : $"Executing 19 Deep Validation Checkers across {selectedEnvs.Count} environments in parallel...";
             StatusMessage = ProgressDetails;
             ValidationIssues.Clear();
@@ -572,7 +704,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     {
                         foreach (var issue in res.Report.Issues)
                         {
-                            issue.Description = $"[{env.Name}] " + issue.Description;
+                            issue.Description = $"[{env.DisplayName}] " + issue.Description;
                             ValidationIssues.Add(issue);
                         }
                     }
@@ -580,7 +712,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 }
 
                 ValResultSummary = isSingle
-                    ? $"Validation scan finished for {selectedEnvs[0].Name}! Total Issues: {ValidationIssues.Count}"
+                    ? $"Validation scan finished for {selectedEnvs[0].DisplayName}! Total Issues: {ValidationIssues.Count}"
                     : $"Multi-Environment Validation scan finished across {selectedEnvs.Count} environments! Total Issues: {ValidationIssues.Count}";
 
                 // Populate In-UX Excel Grid
