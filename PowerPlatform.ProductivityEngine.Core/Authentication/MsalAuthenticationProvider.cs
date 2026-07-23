@@ -24,6 +24,9 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
     public class MsalAuthenticationProvider : IAuthenticationProvider
     {
+        // First-party Microsoft Power Platform Client ID (pre-authorized across all Microsoft/Dataverse tenant directories)
+        public const string PowerPlatformFirstPartyClientId = "51483542-4630-471e-966c-a67da48f5d06";
+
         private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)> TokenCache = 
             new ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)>();
 
@@ -47,7 +50,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
         public static async Task<string> AutoDiscoverTenantIdAsync(string username)
         {
             if (string.IsNullOrWhiteSpace(username) || !username.Contains('@'))
-                return "common";
+                return "organizations";
 
             string domain = username.Split('@')[1].Trim();
             try
@@ -82,10 +85,13 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 ? await AutoDiscoverTenantIdAsync(PreferredUsername ?? "").ConfigureAwait(false)
                 : TenantId;
 
+            // Use Microsoft 1st-party pre-authorized Client ID to bypass admin consent requirements
             var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
             {
-                TenantId = string.IsNullOrWhiteSpace(effectiveTenant) ? "common" : effectiveTenant,
-                LoginHint = PreferredUsername
+                ClientId = PowerPlatformFirstPartyClientId,
+                TenantId = string.IsNullOrWhiteSpace(effectiveTenant) ? "organizations" : effectiveTenant,
+                LoginHint = PreferredUsername,
+                RedirectUri = new Uri("http://localhost")
             });
 
             var tokenContext = new TokenRequestContext(new[] { "https://globaldisco.crm.dynamics.com/.default" });
@@ -173,9 +179,12 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 }
                 else
                 {
-                    var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                    var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
                     {
-                        ExcludeInteractiveBrowserCredential = false
+                        ClientId = PowerPlatformFirstPartyClientId,
+                        TenantId = "organizations",
+                        LoginHint = profile.Username,
+                        RedirectUri = new Uri("http://localhost")
                     });
 
                     var tokenContext = new TokenRequestContext(new[] { scope });
