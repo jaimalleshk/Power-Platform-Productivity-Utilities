@@ -102,9 +102,10 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             AuthenticationResult authResult;
             try
             {
-                // Force SelectAccount prompt so MSAL popup allows account picking without auto-selecting local Windows WAM hint
+                // Force SelectAccount prompt and UseEmbeddedWebView for embedded desktop popup dialog instead of external browser tab
                 var acquireTokenBuilder = pca.AcquireTokenInteractive(scopes)
-                    .WithPrompt(Prompt.SelectAccount);
+                    .WithPrompt(Prompt.SelectAccount)
+                    .WithUseEmbeddedWebView(true);
 
                 if (!string.IsNullOrWhiteSpace(PreferredUsername))
                 {
@@ -118,7 +119,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 // Fallback attempt with user_impersonation scope
                 scopes = new[] { "https://globaldisco.crm.dynamics.com/user_impersonation" };
                 var acquireTokenBuilder = pca.AcquireTokenInteractive(scopes)
-                    .WithPrompt(Prompt.SelectAccount);
+                    .WithPrompt(Prompt.SelectAccount)
+                    .WithUseEmbeddedWebView(true);
 
                 if (!string.IsNullOrWhiteSpace(PreferredUsername))
                 {
@@ -275,7 +277,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                     try
                     {
                         var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { primaryScope })
-                            .WithPrompt(Prompt.SelectAccount);
+                            .WithPrompt(Prompt.SelectAccount)
+                            .WithUseEmbeddedWebView(true);
 
                         if (!string.IsNullOrWhiteSpace(profile.Username))
                         {
@@ -290,7 +293,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                         // Fallback scope: user_impersonation
                         string fallbackScope = $"{resourceUrl}/user_impersonation";
                         var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { fallbackScope })
-                            .WithPrompt(Prompt.SelectAccount);
+                            .WithPrompt(Prompt.SelectAccount)
+                            .WithUseEmbeddedWebView(true);
 
                         if (!string.IsNullOrWhiteSpace(profile.Username))
                         {
