@@ -1,6 +1,14 @@
 # Power Platform Productivity Engine
 
-A modular, resilient, and extensible suite of productivity utilities for Microsoft Power Platform (Dataverse) solution management, deep validation, and automated repair.
+A modular, resilient, and extensible suite of productivity utilities for Microsoft Power Platform (Dataverse) solution management, deep validation, automated repair, and N-Way multi-environment comparison.
+
+---
+
+## 🆚 Architectural Comparison: XrmToolBox vs. PowerPlatform Productivity Engine
+
+> **Key Distinction**: **XrmToolBox** supports **2-environment comparison only** (1-to-1 matching via manual desktop plugins), whereas **PowerPlatform Productivity Engine** supports **2+ multi-environment N-Way comparison** (matrix diffing across N environments simultaneously, headless CI/CD automation, built-in C# assembly decompilation, and reusable .NET 9 core libraries).
+
+📄 **Read the Full Comparison Document**: [XRMTOOLBOX_VS_PRODUCTIVITY_ENGINE.md](file:///D:/OneDrive/OneDrive-Projects/Claude%20D365%20Consulting/PowerPlatformUtilities/XRMTOOLBOX_VS_PRODUCTIVITY_ENGINE.md)
 
 ---
 
@@ -36,12 +44,14 @@ graph TD
     subgraph Engine Libraries
         Val[Utilities.SolutionDeepValidator.dll] -->|Uses| Core
         Repair[Utilities.SolutionRepairDistiller.dll] -->|Uses| Core
+        EnvComp[Utilities.EnvironmentComparator.dll] -->|Uses| Core
     end
 
     subgraph User Interface
         CLI[PowerPlatform.ProductivityEngine.ConsoleUX.exe] -->|Consumes| Val
         CLI -->|Consumes| Repair
         CLI -->|Subscribes to| ProgressModel
+        WPF[PowerPlatform.ProductivityEngine.DesktopUX.exe] -->|Consumes| EnvComp
     end
 
     subgraph Tests
@@ -53,7 +63,7 @@ graph TD
 ### Decoupled Core Components
 
 1. **`PowerPlatform.ProductivityEngine.Core`** (Class Library):
-   * **Multi-Tenant Authentication**: Integrated MSAL-based interactive and silent OAuth token acquisition with secure caching.
+   * **Multi-Tenant Authentication**: Integrated MSAL-based interactive and silent OAuth token acquisition with secure caching and Azure Tenant ID auto-discovery.
    * **API Resilience Pipeline**: Implements custom HTTP handlers with a `SemaphoreSlim`-locked 429 rate limit resolver and exponential backoffs (handling Dataverse API throttling gracefully).
    * **Unified Reporting Pipeline**: Direct-to-file serializations of issues into standardized JSON reports and responsive, self-contained HTML dashboards.
    * **Dynamic Progress Reporting**: Publishes execution metrics, statuses, and steps via .NET standard `IProgress<ProgressUpdate>` callbacks.
@@ -68,8 +78,16 @@ graph TD
    * **OOB Table Bloat Distillation**: Removes and re-adds out-of-the-box (OOB) entities with `DoNotIncludeSubcomponents = true` to shrink deployment payloads.
    * **Programmatic Repair Executor**: Executes `RemoveActiveCustomizations` against target environments to clean up active layer overlaps, and updates source packages using `AddSolutionComponent`.
 
-4. **`PowerPlatform.ProductivityEngine.ConsoleUX`** (CLI Application):
-   * Provides thread-safe, colorized terminal outputs using custom CLI commands.
+4. **`Utilities.EnvironmentComparator`** (Class Library):
+   * **N-Way Multi-Environment Comparator Engine**: Crawls 2+ (N) tenant environments simultaneously, building unified Solution Explorer trees and side-by-side matrix diffs.
+   * **Live Assembly Decompiler**: Integrated ICSharpCode.Decompiler (ILSpy) for downloading and decompiling C# Plugin Assemblies directly from Dataverse binary blobs.
+   * **Offline SQLite Engine**: Serializes environment metadata snapshots into local SQLite database files for offline comparison analysis.
+
+5. **`PowerPlatform.ProductivityEngine.DesktopUX`** (WPF Desktop UI Application):
+   * Provides Windows Desktop WPF UI for solution browsing, N-Way environment comparison matrix, Expand/Collapse All tree view, and dynamic code/property diff viewers.
+
+6. **`PowerPlatform.ProductivityEngine.ConsoleUX`** (CLI Application):
+   * Provides thread-safe, colorized terminal outputs using custom CLI commands (`validate`, `distill`, `repair`, `role`, `compare`).
 
 ---
 
