@@ -71,12 +71,12 @@ namespace Utilities.EnvironmentComparator.Engine
                 IsChecked = true
             };
 
-            // 1. Standard CRM Solution Explorer Folder
+            // 1. Standard Solution Explorer Folder (15 Core Components)
             var stdFolder = new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,
                 SubCategory = "Folder",
-                DisplayName = "📁 Standard Solution Explorer (CRM Components)",
+                DisplayName = "📁 Standard Solution Explorer (15 Core Component Types)",
                 UniqueKey = "Root2.StandardExplorer",
                 IsExpanded = true,
                 IsChecked = true
@@ -93,8 +93,24 @@ namespace Utilities.EnvironmentComparator.Engine
             stdFolder.Children.Add(new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "OptionSets",
+                DisplayName = "🔠 Global Option Sets / Choice Columns",
+                UniqueKey = "Root2.OptionSets",
+                IsChecked = true
+            });
+            stdFolder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "WebResources",
+                DisplayName = "🌐 Web Resources (JavaScript, HTML, CSS, SVG, XML)",
+                UniqueKey = "Root2.WebResources",
+                IsChecked = true
+            });
+            stdFolder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
                 SubCategory = "Workflows",
-                DisplayName = "⚡ Workflows, Power Automate & Cloud Flows",
+                DisplayName = "⚡ Processes (Workflows, Cloud Flows, Business Process Flows)",
                 UniqueKey = "Root2.Workflows",
                 IsChecked = true
             });
@@ -102,24 +118,24 @@ namespace Utilities.EnvironmentComparator.Engine
             {
                 RootCategory = RootCategory.MetadataCustomizations,
                 SubCategory = "PluginAssemblies",
-                DisplayName = "🧩 Plugin Assemblies, Custom Steps & SDK Messages",
+                DisplayName = "🧩 Plug-in Assemblies & Custom APIs",
                 UniqueKey = "Root2.Plugins",
                 IsChecked = true
             });
             stdFolder.Children.Add(new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,
-                SubCategory = "SecurityRoles",
-                DisplayName = "🔐 Security Roles & Table Privileges",
-                UniqueKey = "Root2.SecurityRoles",
+                SubCategory = "PluginSteps",
+                DisplayName = "📩 SDK Message Processing Steps (PRT Registrations)",
+                UniqueKey = "Root2.PluginSteps",
                 IsChecked = true
             });
             stdFolder.Children.Add(new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,
-                SubCategory = "WebResources",
-                DisplayName = "🌐 Web Resources (JavaScript, HTML, CSS, SVG)",
-                UniqueKey = "Root2.WebResources",
+                SubCategory = "SecurityRoles",
+                DisplayName = "🔐 Security Roles & Field Security Profiles",
+                UniqueKey = "Root2.SecurityRoles",
                 IsChecked = true
             });
             stdFolder.Children.Add(new DiffNode
@@ -134,22 +150,62 @@ namespace Utilities.EnvironmentComparator.Engine
             {
                 RootCategory = RootCategory.MetadataCustomizations,
                 SubCategory = "Dashboards",
-                DisplayName = "📊 System Dashboards & Public Views",
+                DisplayName = "📊 System Dashboards & Saved Queries / Public Views",
                 UniqueKey = "Root2.Dashboards",
                 IsChecked = true
             });
             stdFolder.Children.Add(new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,
-                SubCategory = "OptionSets",
-                DisplayName = "🔠 Global Option Sets / Choice Columns",
-                UniqueKey = "Root2.OptionSets",
+                SubCategory = "SiteMaps",
+                DisplayName = "🗺️ Site Maps & Navigation Menus",
+                UniqueKey = "Root2.SiteMaps",
+                IsChecked = true
+            });
+            stdFolder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.AdminSettings,
+                SubCategory = "EnvVars",
+                DisplayName = "🔑 Environment Variables & Secrets",
+                UniqueKey = "Root2.EnvVars",
+                IsChecked = true
+            });
+            stdFolder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "Connectors",
+                DisplayName = "🔌 Connection References & Custom Connectors",
+                UniqueKey = "Root2.Connectors",
+                IsChecked = true
+            });
+            stdFolder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "Copilots",
+                DisplayName = "🤖 Copilot Studio Bots & Component Topics",
+                UniqueKey = "Root2.Copilots",
+                IsChecked = true
+            });
+            stdFolder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "AiModels",
+                DisplayName = "🧠 AI Builder Models & Prompts",
+                UniqueKey = "Root2.AiModels",
+                IsChecked = true
+            });
+            stdFolder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "PcfControls",
+                DisplayName = "📦 PCF Controls & Custom Control Resources",
+                UniqueKey = "Root2.PcfControls",
                 IsChecked = true
             });
 
             root2.Children.Add(stdFolder);
 
-            // 2. Solutions Directory (Per-Solution Structure)
+            // 2. Solutions Directory (Per-Solution Hierarchy)
             var solDirectoryFolder = new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,
@@ -160,7 +216,6 @@ namespace Utilities.EnvironmentComparator.Engine
                 IsChecked = true
             };
 
-            // Sample / Pre-loaded System Solutions
             var defaultSolNode = new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,

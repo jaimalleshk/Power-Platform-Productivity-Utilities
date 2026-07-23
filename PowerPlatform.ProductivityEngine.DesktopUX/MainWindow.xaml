@@ -19,6 +19,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="180" MinHeight="100"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -40,8 +41,8 @@
             </DockPanel>
         </Border>
 
-        <!-- PROGRESS & STATUS BANNER (VISIBLE WHEN PROCESSING) -->
-        <Border Grid.Row="1" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" Background="#1E293B" CornerRadius="6" Padding="10,8" Margin="0,0,0,10" BorderBrush="#0284C7" BorderThickness="1">
+        <!-- PROGRESS & STATUS BANNER (REAL PERCENTAGE INDICATOR) -->
+        <Border Grid.Row="1" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" Background="#1E293B" CornerRadius="6" Padding="12,8" Margin="0,0,0,10" BorderBrush="#0284C7" BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -49,9 +50,10 @@
                 </Grid.RowDefinitions>
                 <DockPanel Grid.Row="0" Margin="0,0,0,6" LastChildFill="True">
                     <TextBlock Text="⏳ PROCESSING IN PROGRESS: " FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Left"/>
+                    <TextBlock Text="{Binding ProgressPercentage, StringFormat={}{0:0}%}" FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Right" Margin="8,0,0,0"/>
                     <TextBlock Text="{Binding ProgressDetails}" Foreground="#F8FAFC" FontSize="12" TextTrimming="CharacterEllipsis"/>
                 </DockPanel>
-                <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="8" Background="#0F172A" Foreground="#0284C7" BorderThickness="0"/>
+                <ProgressBar Grid.Row="1" IsIndeterminate="False" Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="10" Background="#0F172A" Foreground="#0284C7" BorderThickness="0"/>
             </Grid>
         </Border>
 
@@ -446,20 +448,20 @@
                                         </Grid.RowDefinitions>
 
                                         <DockPanel Grid.Row="0" Margin="0,0,0,4" LastChildFill="False">
-                                            <TextBlock Text="🌐 ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                                            <TextBlock Text="🌐 ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" FontSize="15"/>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                <Button Content="🛡️ Check if Admin" Command="{Binding DataContext.CheckAdminAccessCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#4338CA" Foreground="White" Padding="5,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
-                                                <Button Content="☑️ All" Command="{Binding DataContext.SelectAllEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="5,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
-                                                <Button Content="🔲 None" Command="{Binding DataContext.SelectNoneEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="5,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                                <Button Content="🛡️ Check if Admin" Command="{Binding DataContext.CheckAdminAccessCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#4338CA" Foreground="White" Padding="6,3" Margin="0,0,4,0" FontSize="12" BorderThickness="0"/>
+                                                <Button Content="☑️ All" Command="{Binding DataContext.SelectAllEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,4,0" FontSize="12" BorderThickness="0"/>
+                                                <Button Content="🔲 None" Command="{Binding DataContext.SelectNoneEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,4,0" FontSize="12" BorderThickness="0"/>
                                             </StackPanel>
                                         </DockPanel>
 
-                                        <TextBox Grid.Row="1" Text="{Binding DataContext.EnvSearchText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,4" Margin="0,0,0,6" FontSize="12"/>
+                                        <TextBox Grid.Row="1" Text="{Binding DataContext.EnvSearchText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,4" Margin="0,0,0,6" FontSize="13.5"/>
 
                                         <ListBox Grid.Row="2" ItemsSource="{Binding DataContext.FilteredEnvironments, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0F172A" BorderBrush="#334155">
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate>
-                                                    <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}" Margin="4,2">
+                                                    <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}" Margin="4,2" FontSize="13.5">
                                                         <CheckBox.Style>
                                                             <Style TargetType="CheckBox">
                                                                 <Setter Property="Foreground" Value="#F8FAFC"/>
@@ -480,16 +482,16 @@
                                     <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="#334155" Cursor="SizeNS"/>
 
                                     <DockPanel Grid.Row="2" Margin="0,6,0,6" LastChildFill="False">
-                                        <TextBlock Text="📁 EXPLODED SOLUTION EXPLORER TREE" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                                        <TextBlock Text="📁 EXPLODED SOLUTION EXPLORER TREE" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" FontSize="15"/>
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                            <Button Content="☑️ Select All" Command="{Binding DataContext.SelectAllTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="6,3" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
-                                            <Button Content="🔲 Select None" Command="{Binding DataContext.SelectNoneTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#475569" Foreground="White" Padding="6,3" Margin="0,0,6,0" FontSize="10" BorderThickness="0"/>
-                                            <Button Content="🚀 Compare Selected" Command="{Binding DataContext.CompareEnvironmentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="8,3" Margin="0,0,4,0" FontSize="11" BorderThickness="0"/>
-                                            <Button Content="➕ Expand" Command="{Binding DataContext.ExpandAllCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,2,0" FontSize="10" BorderThickness="0"/>
+                                            <Button Content="☑️ Select All" Command="{Binding DataContext.SelectAllTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="6,3" Margin="0,0,4,0" FontSize="11.5" BorderThickness="0"/>
+                                            <Button Content="🔲 Select None" Command="{Binding DataContext.SelectNoneTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#475569" Foreground="White" Padding="6,3" Margin="0,0,6,0" FontSize="11.5" BorderThickness="0"/>
+                                            <Button Content="🚀 Compare Selected" Command="{Binding DataContext.CompareEnvironmentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="8,3" Margin="0,0,4,0" FontSize="12" BorderThickness="0"/>
+                                            <Button Content="➕ Expand" Command="{Binding DataContext.ExpandAllCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,2,0" FontSize="11.5" BorderThickness="0"/>
                                         </StackPanel>
                                     </DockPanel>
 
-                                    <TreeView Grid.Row="3" ItemsSource="{Binding DataContext.UnifiedSolutionExplorerTree, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItemChanged="TreeView_SelectedItemChanged" Background="#0F172A" Foreground="#F8FAFC" BorderThickness="0">
+                                    <TreeView Grid.Row="3" ItemsSource="{Binding DataContext.UnifiedSolutionExplorerTree, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItemChanged="TreeView_SelectedItemChanged" Background="#0F172A" Foreground="#F8FAFC" BorderThickness="0" FontSize="13.5">
                                         <TreeView.ItemContainerStyle>
                                             <Style TargetType="TreeViewItem">
                                                 <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
@@ -498,10 +500,10 @@
                                         </TreeView.ItemContainerStyle>
                                         <TreeView.ItemTemplate>
                                             <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                                <StackPanel Orientation="Horizontal" Margin="2">
-                                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                    <TextBlock Text="{Binding DisplayName}" Foreground="#F8FAFC" FontWeight="SemiBold" Margin="0,0,8,0"/>
-                                                    <TextBlock Text="{Binding Status}" Foreground="#38BDF8" FontSize="11" VerticalAlignment="Center"/>
+                                                <StackPanel Orientation="Horizontal" Margin="3,2">
+                                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="13.5"/>
+                                                    <TextBlock Text="{Binding DisplayName}" Foreground="#F8FAFC" FontWeight="SemiBold" Margin="0,0,10,0" FontSize="14"/>
+                                                    <TextBlock Text="{Binding Status}" Foreground="#38BDF8" FontSize="13" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </HierarchicalDataTemplate>
                                         </TreeView.ItemTemplate>
@@ -703,8 +705,93 @@
             </TabControl.ContentTemplate>
         </TabControl>
 
+        <!-- PERMANENT 2-PANEL BOTTOM SYSTEM EXECUTION CONSOLE -->
+        <Border Grid.Row="3" Background="#0F172A" CornerRadius="8" Padding="10" Margin="0,6,0,6" BorderBrush="#334155" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="0,0,0,6" LastChildFill="False">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="📜 SYSTEM EXECUTION CONSOLE" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="(Live execution logs, API calls &amp; background operations)" Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                        <Button Content="💾 Export Logs" Command="{Binding ExportConsoleLogsCommand}" Background="#334155" Foreground="White" Padding="6,2" Margin="0,0,6,0" FontSize="10" BorderThickness="0"/>
+                        <Button Content="🧹 Clear Console" Command="{Binding ClearConsoleCommand}" Background="#475569" Foreground="White" Padding="6,2" FontSize="10" BorderThickness="0"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT CONSOLE PANEL: INFO LOGS -->
+                    <Border Grid.Column="0" Background="#1E293B" CornerRadius="6" Padding="6" BorderBrush="#334155" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="ℹ️ INFO LOGS &amp; OPERATIONAL TRACES" Foreground="#38BDF8" FontWeight="Bold" FontSize="11" Margin="0,0,0,4"/>
+                            <ScrollViewer x:Name="InfoConsoleScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding InfoConsoleLogs}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Foreground="#F8FAFC" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="11.5" Margin="0,1" TextWrapping="Wrap">
+                                                <Run Text="[" Foreground="#64748B"/>
+                                                <Run Text="{Binding FormattedTimestamp}" Foreground="#64748B"/>
+                                                <Run Text="] [" Foreground="#64748B"/>
+                                                <Run Text="{Binding Component}" Foreground="#38BDF8" FontWeight="Bold"/>
+                                                <Run Text="] " Foreground="#64748B"/>
+                                                <Run Text="{Binding Message}"/>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#334155" Cursor="SizeWE"/>
+
+                    <!-- RIGHT CONSOLE PANEL: ERROR & WARNING LOGS -->
+                    <Border Grid.Column="2" Background="#1E293B" CornerRadius="6" Padding="6" BorderBrush="#334155" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="⚠️ ERRORS &amp; WARNING TRACES" Foreground="#EF4444" FontWeight="Bold" FontSize="11" Margin="0,0,0,4"/>
+                            <ScrollViewer x:Name="ErrorConsoleScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding ErrorConsoleLogs}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Foreground="#F87171" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="11.5" Margin="0,1" TextWrapping="Wrap">
+                                                <Run Text="[" Foreground="#64748B"/>
+                                                <Run Text="{Binding FormattedTimestamp}" Foreground="#64748B"/>
+                                                <Run Text="] [" Foreground="#64748B"/>
+                                                <Run Text="{Binding Component}" Foreground="#EF4444" FontWeight="Bold"/>
+                                                <Run Text="] " Foreground="#64748B"/>
+                                                <Run Text="{Binding Message}"/>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
         <!-- STATUS BAR -->
-        <Border Grid.Row="3" Background="#0F172A" Padding="6,4">
+        <Border Grid.Row="4" Background="#0F172A" Padding="6,4">
             <TextBlock Text="{Binding StatusMessage}" Foreground="#94A3B8" FontSize="12"/>
         </Border>
     </Grid>
