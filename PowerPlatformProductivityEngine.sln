@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PowerPlatform.ProductivityE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities.UserMultiEnvManager", "Utilities.UserMultiEnvManager\Utilities.UserMultiEnvManager.csproj", "{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities.EnvironmentComparator", "Utilities.EnvironmentComparator\Utilities.EnvironmentComparator.csproj", "{A29B7F1C-88DF-4E90-B211-7390FCE8481A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PowerPlatform.ProductivityEngine.DesktopUX", "PowerPlatform.ProductivityEngine.DesktopUX\PowerPlatform.ProductivityEngine.DesktopUX.csproj", "{F9C8D7B6-A5E4-3210-9876-543210987654}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,5 +52,13 @@ Global
 		{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4FA1D5D4-738C-4B7D-89F1-ED384F7CEE19}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A29B7F1C-88DF-4E90-B211-7390FCE8481A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A29B7F1C-88DF-4E90-B211-7390FCE8481A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A29B7F1C-88DF-4E90-B211-7390FCE8481A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A29B7F1C-88DF-4E90-B211-7390FCE8481A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9C8D7B6-A5E4-3210-9876-543210987654}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9C8D7B6-A5E4-3210-9876-543210987654}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9C8D7B6-A5E4-3210-9876-543210987654}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9C8D7B6-A5E4-3210-9876-543210987654}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

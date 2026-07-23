@@ -1,18 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PowerPlatform.ProductivityEngine.Core\PowerPlatform.ProductivityEngine.Core.csproj" />
-    <ProjectReference Include="..\Utilities.SolutionDeepValidator\Utilities.SolutionDeepValidator.csproj" />
-    <ProjectReference Include="..\Utilities.SolutionRepairDistiller\Utilities.SolutionRepairDistiller.csproj" />
-    <ProjectReference Include="..\Utilities.UserMultiEnvManager\Utilities.UserMultiEnvManager.csproj" />
     <ProjectReference Include="..\Utilities.EnvironmentComparator\Utilities.EnvironmentComparator.csproj" />
+    <ProjectReference Include="..\Utilities.UserMultiEnvManager\Utilities.UserMultiEnvManager.csproj" />
   </ItemGroup>
 
 </Project>

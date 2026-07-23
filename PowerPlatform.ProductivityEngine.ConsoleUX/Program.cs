@@ -11,6 +11,8 @@ using Utilities.SolutionRepairDistiller.Engine;
 using Utilities.SolutionRepairDistiller.Models;
 using Utilities.UserMultiEnvManager.Engine;
 using Utilities.UserMultiEnvManager.Models;
+using Utilities.EnvironmentComparator.Engine;
+using Utilities.EnvironmentComparator.Models;
 
 namespace PowerPlatform.ProductivityEngine.ConsoleUX
 {
@@ -78,6 +80,8 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
                         return await RunRepairAsync(subcommandArgs).ConfigureAwait(false);
                     case "role":
                         return await RunRoleAsync(subcommandArgs).ConfigureAwait(false);
+                    case "compare":
+                        return await RunCompareAsync(subcommandArgs).ConfigureAwait(false);
                     default:
                         SafeSetForegroundColor(ConsoleColor.Red);
                         Console.WriteLine($"[ERROR] Unknown command '{args[commandIndex]}'. Use 'help' to see list of valid commands.");
@@ -106,6 +110,7 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             Console.WriteLine("  distill    Optimizes OOB bloated entities on server or repairs XML corruptions in local ZIPs.");
             Console.WriteLine("  repair     Parses a validation report and applies fixes (layer removal, dependency bundling).");
             Console.WriteLine("  role       Multi-environment user roles & business unit reporting and assignments.");
+            Console.WriteLine("  compare    N-way environment metadata and admin settings comparison matrix.");
             Console.ResetColor();
 
             Console.WriteLine("\nGeneral Global Options:");
@@ -1145,6 +1150,120 @@ namespace PowerPlatform.ProductivityEngine.ConsoleUX
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"\n[ERROR] Role subcommand failed: {ex.Message}");
+                Console.ResetColor();
+                return 1;
+            }
+        }
+
+        private static async Task<int> RunCompareAsync(string[] args)
+        {
+            List<string> envUrls = new();
+            bool simulate = false;
+            string outHtml = "environment_comparison_report.html";
+            string outJson = "environment_comparison_report.json";
+            string outCsv = "environment_comparison_report.csv";
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i].Replace("—", "--").ToLower();
+                switch (arg)
+                {
+                    case "--env":
+                    case "-env":
+                    case "--envs":
+                    case "-envs":
+                    case "--url":
+                    case "-url":
+                        if (i + 1 < args.Length)
+                        {
+                            envUrls.AddRange(args[++i].Split(',').Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)));
+                        }
+                        break;
+                    case "--simulate":
+                    case "-simulate":
+                        simulate = true;
+                        break;
+                    case "--out-html":
+                    case "-out-html":
+                        if (i + 1 < args.Length) outHtml = args[++i];
+                        break;
+                    case "--out-json":
+                    case "-out-json":
+                        if (i + 1 < args.Length) outJson = args[++i];
+                        break;
+                    case "--out-csv":
+                    case "-out-csv":
+                        if (i + 1 < args.Length) outCsv = args[++i];
+                        break;
+                }
+            }
+
+            if (envUrls.Count < 2)
+            {
+                simulate = true;
+                envUrls = new List<string>
+                {
+                    "https://contoso-dev.crm.dynamics.com",
+                    "https://contoso-test.crm.dynamics.com",
+                    "https://contoso-prod.crm.dynamics.com"
+                };
+            }
+
+            Console.WriteLine("[Compare] Initiating N-Way Environment Metadata & Settings Comparison...");
+            Console.WriteLine($"  Environments: {string.Join(", ", envUrls)}");
+            Console.WriteLine($"  Simulation:   {simulate}\n");
+
+            var scope = new ComparisonScope
+            {
+                TargetEnvironments = envUrls.Select(u => new ConnectionProfile { EnvironmentUrl = u, UseInteractiveAuth = true }).ToList()
+            };
+
+            var crawler = new EnvironmentMetadataCrawler(useSimulationMode: simulate);
+            var envDataList = new List<RawEnvData>();
+
+            Action<string> log = msg => {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.Write("[COMPARE] ");
+                Console.ResetColor();
+                Console.WriteLine(msg);
+            };
+
+            try
+            {
+                foreach (var profile in scope.TargetEnvironments)
+                {
+                    log($"Crawling metadata & settings for: {profile.EnvironmentUrl}...");
+                    var progress = new Progress<ProgressUpdate>(p => log($"{p.Stage}: {p.Message}"));
+                    var data = await crawler.CrawlEnvironmentAsync(profile, scope, progress).ConfigureAwait(false);
+                    envDataList.Add(data);
+                }
+
+                var comparer = new NWayComparer();
+                var result = comparer.CompareEnvironments(envDataList, scope);
+
+                var exporter = new ComparatorExporter();
+                exporter.ExportToJson(outJson, result);
+                exporter.ExportToHtml(outHtml, result);
+                exporter.ExportToCsvExcel(outCsv, result);
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"\n[SUCCESS] Environment comparison matrix completed.");
+                Console.WriteLine($"  Total Items: {result.TotalCount} | Identical: {result.IdenticalCount} | Deltas: {result.DeltaCount} | Unique: {result.UniqueCount}");
+                Console.ResetColor();
+
+                Console.WriteLine("=================================================================");
+                Console.WriteLine("Reports generated. Copy a path below and open it in a browser or Excel:");
+                Console.WriteLine($"HTML Dashboard: {Path.GetFullPath(outHtml)}");
+                Console.WriteLine($"JSON Report:    {Path.GetFullPath(outJson)}");
+                Console.WriteLine($"Excel / CSV:    {Path.GetFullPath(outCsv)}");
+                Console.WriteLine("=================================================================");
+
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n[ERROR] Comparison failed: {ex.Message}");
                 Console.ResetColor();
                 return 1;
             }
