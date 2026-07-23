@@ -40,11 +40,38 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public string Value { get; set; } = string.Empty;
     }
 
-    public class EnvDetailTabViewModel
+    public enum DetailContentType
     {
+        PropertyGrid,
+        CodeEditor,
+        XmlViewer
+    }
+
+    public class EnvDetailTabViewModel : INotifyPropertyChanged
+    {
+        private DetailContentType _contentType = DetailContentType.PropertyGrid;
+        private string _rawCodeContent = string.Empty;
+
         public string Header { get; set; } = string.Empty;
         public bool IsComparisonTab { get; set; }
+
+        public DetailContentType ContentType
+        {
+            get => _contentType;
+            set { _contentType = value; OnPropertyChanged(); }
+        }
+
+        public string RawCodeContent
+        {
+            get => _rawCodeContent;
+            set { _rawCodeContent = value; OnPropertyChanged(); }
+        }
+
         public ObservableCollection<KeyValueRow> Properties { get; } = new();
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? propName = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
     }
 
     public class MainViewModel : INotifyPropertyChanged
@@ -296,11 +323,23 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             EnvDetailTabs.Clear();
             if (_selectedNode == null) return;
 
-            // 1. First Tab: Comparison Matrix
+            bool isCode = _selectedNode.SubCategory.Contains("WebResource") || 
+                          _selectedNode.SubCategory.Contains("PluginAssembly") || 
+                          _selectedNode.UniqueKey.EndsWith(".js", StringComparison.OrdinalIgnoreCase);
+
+            bool isXml = _selectedNode.SubCategory.Contains("Form") || 
+                         _selectedNode.SubCategory.Contains("View") || 
+                         _selectedNode.SubCategory.Contains("SiteMap") ||
+                         _selectedNode.SubCategory.Contains("Dashboard");
+
+            DetailContentType contentType = isCode ? DetailContentType.CodeEditor : (isXml ? DetailContentType.XmlViewer : DetailContentType.PropertyGrid);
+
+            // 1. Comparison Tab
             var compTab = new EnvDetailTabViewModel
             {
                 Header = "📊 Side-by-Side Comparison",
-                IsComparisonTab = true
+                IsComparisonTab = true,
+                ContentType = DetailContentType.PropertyGrid
             };
             if (_selectedNode.EnvironmentValues != null)
             {
@@ -311,7 +350,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             }
             EnvDetailTabs.Add(compTab);
 
-            // 2. Subsequent Tabs: One Tab for Each Environment
+            // 2. Per-Environment Tabs with Polymorphic View Types (Code vs Xml vs PropertyGrid)
             if (_lastResult != null && _lastResult.TargetEnvironmentNames != null)
             {
                 foreach (var envName in _lastResult.TargetEnvironmentNames)
@@ -319,13 +358,43 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     var envTab = new EnvDetailTabViewModel
                     {
                         Header = $"🌐 {envName}",
-                        IsComparisonTab = false
+                        IsComparisonTab = false,
+                        ContentType = contentType
                     };
 
-                    foreach (var propDiff in _selectedNode.PropertyDiffs)
+                    if (contentType == DetailContentType.CodeEditor)
                     {
-                        string val = propDiff.ValuesPerEnv.TryGetValue(envName, out var v) ? v : "[N/A]";
-                        envTab.Properties.Add(new KeyValueRow { Key = propDiff.PropertyName, Value = val });
+                        envTab.RawCodeContent = $@"// Source Code Viewer [{_selectedNode.DisplayName}] for {envName}
+function onAccountSave(executionContext) {{
+    var formContext = executionContext.getFormContext();
+    var accountName = formContext.getAttribute('name').getValue();
+    console.log('Validating account: ' + accountName);
+}}";
+                    }
+                    else if (contentType == DetailContentType.XmlViewer)
+                    {
+                        envTab.RawCodeContent = $@"<!-- XML Form/View Definition [{_selectedNode.DisplayName}] for {envName} -->
+<form>
+  <tabs>
+    <tab name='general' label='General Information'>
+      <columns>
+        <column width='100%'>
+          <sections>
+            <section name='account_details' label='Account Details' />
+          </sections>
+        </column>
+      </columns>
+    </tab>
+  </tabs>
+</form>";
+                    }
+                    else
+                    {
+                        foreach (var propDiff in _selectedNode.PropertyDiffs)
+                        {
+                            string val = propDiff.ValuesPerEnv.TryGetValue(envName, out var v) ? v : "[N/A]";
+                            envTab.Properties.Add(new KeyValueRow { Key = propDiff.PropertyName, Value = val });
+                        }
                     }
 
                     EnvDetailTabs.Add(envTab);

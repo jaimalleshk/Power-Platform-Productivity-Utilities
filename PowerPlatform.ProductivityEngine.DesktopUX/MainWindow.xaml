@@ -90,7 +90,7 @@
                 </Grid>
             </Border>
 
-            <!-- RIGHT PANE: DYNAMIC TABS FOR COMPARISON & EACH ENVIRONMENT -->
+            <!-- RIGHT PANE: POLYMORPHIC CONTENT IN DETAIL TABS (PROPERTY GRID VS CODE/XML VIEWER) -->
             <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14" BorderBrush="#334155" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -112,7 +112,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Dynamic TabControl for Comparison + One Tab Per Environment -->
+                    <!-- Dynamic Polymorphic TabControl for Right Pane -->
                     <TabControl Grid.Row="1" ItemsSource="{Binding EnvDetailTabs}" Background="Transparent" BorderThickness="0">
                         <TabControl.ItemTemplate>
                             <DataTemplate>
@@ -122,12 +122,43 @@
                         <TabControl.ContentTemplate>
                             <DataTemplate>
                                 <Border Background="#0F172A" CornerRadius="6" Padding="10" Margin="0,6,0,0">
-                                    <DataGrid ItemsSource="{Binding Properties}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Property / Environment" Binding="{Binding Key}" Width="240"/>
-                                            <DataGridTextColumn Header="Value / Details" Binding="{Binding Value}" Width="*"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
+                                    <Grid>
+                                        <!-- View 1: Property Grid Table (for metadata & settings) -->
+                                        <DataGrid ItemsSource="{Binding Properties}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
+                                            <DataGrid.Style>
+                                                <Style TargetType="DataGrid">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ContentType}" Value="PropertyGrid">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGrid.Style>
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Property / Attribute" Binding="{Binding Key}" Width="240"/>
+                                                <DataGridTextColumn Header="Value / Configuration" Binding="{Binding Value}" Width="*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <!-- View 2: Code & XML Viewer (for JS Web Resources, C# Decompiled Plugins, Form XML, FetchXML) -->
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                            <ScrollViewer.Style>
+                                                <Style TargetType="ScrollViewer">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ContentType}" Value="CodeEditor">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding ContentType}" Value="XmlViewer">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ScrollViewer.Style>
+                                            <TextBox Text="{Binding RawCodeContent}" IsReadOnly="True" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="13" Background="#0F172A" Foreground="#38BDF8" BorderThickness="0" Padding="8"/>
+                                        </ScrollViewer>
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </TabControl.ContentTemplate>
