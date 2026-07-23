@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Collections.Generic;
 using Utilities.EnvironmentComparator.Models;
+using Utilities.EnvironmentComparator.Storage;
 
 namespace Utilities.EnvironmentComparator.Engine
 {
@@ -30,12 +31,9 @@ namespace Utilities.EnvironmentComparator.Engine
             if (result == null) throw new ArgumentNullException(nameof(result));
 
             var sb = new StringBuilder();
-
-            // Header line
             var envHeaders = result.TargetEnvironmentNames;
             sb.AppendLine($"RootCategory,SubCategory,ComponentKey,Status,{string.Join(",", envHeaders)}");
 
-            // Function to write nodes
             void WriteNodes(IEnumerable<DiffNode> nodes)
             {
                 foreach (var node in nodes)
@@ -51,6 +49,12 @@ namespace Utilities.EnvironmentComparator.Engine
             WriteNodes(result.MetadataNodes);
 
             File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+        }
+
+        public void ExportFormattedExcel(string path, ComparisonResult result)
+        {
+            var excelGen = new ExcelReportGenerator();
+            excelGen.ExportFormattedExcelXml(path, result);
         }
 
         public void ExportToHtml(string path, ComparisonResult result)
