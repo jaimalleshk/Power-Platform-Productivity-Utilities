@@ -209,7 +209,14 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                            <TextBlock Text="🔍 SOLUTION DEEP VALIDATION SCANNER (19 CHECKERS)" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,8"/>
+                            <DockPanel LastChildFill="False" Margin="0,0,0,8">
+                                <TextBlock Text="🔍 SOLUTION DEEP VALIDATION SCANNER (19 CHECKERS)" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                    <Button Content="📊 Export HTML" Command="{Binding ExportValHtmlCommand}" Background="#334155" Foreground="White" Padding="10,4" Margin="0,0,6,0" BorderThickness="0"/>
+                                    <Button Content="📗 Export Formatted Excel" Command="{Binding ExportValExcelCommand}" Background="#0D9488" Foreground="White" FontWeight="Bold" Padding="10,4" BorderThickness="0"/>
+                                </StackPanel>
+                            </DockPanel>
+
                             <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -235,15 +242,27 @@
                             <TextBlock Text="{Binding ValResultSummary}" Foreground="#F8FAFC" FontWeight="SemiBold"/>
                         </Border>
 
-                        <DataGrid Grid.Row="2" ItemsSource="{Binding ValidationIssues}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Issue ID" Binding="{Binding Id}" Width="120"/>
-                                <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="100"/>
-                                <DataGridTextColumn Header="Component" Binding="{Binding ComponentType}" Width="140"/>
-                                <DataGridTextColumn Header="Logical Name" Binding="{Binding LogicalName}" Width="200"/>
-                                <DataGridTextColumn Header="Description &amp; Remediation" Binding="{Binding Description}" Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0">
+                            <TabItem Header="📋 Live Issues DataGrid" Foreground="#38BDF8" FontWeight="Bold">
+                                <DataGrid ItemsSource="{Binding ValidationIssues}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Issue ID" Binding="{Binding Id}" Width="120"/>
+                                        <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="100"/>
+                                        <DataGridTextColumn Header="Component" Binding="{Binding ComponentType}" Width="140"/>
+                                        <DataGridTextColumn Header="Logical Name" Binding="{Binding LogicalName}" Width="200"/>
+                                        <DataGridTextColumn Header="Description &amp; Remediation" Binding="{Binding Description}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </TabItem>
+                            <TabItem Header="📊 Live In-UX Excel Data Grid" Foreground="#38BDF8" FontWeight="Bold">
+                                <DataGrid ItemsSource="{Binding ModuleExcelGridRows}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Report Category / Issue" Binding="{Binding Key}" Width="250"/>
+                                        <DataGridTextColumn Header="Spreadsheet Detail / Log Entry" Binding="{Binding Value}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </TabItem>
+                        </TabControl>
                     </Grid>
                 </Border>
             </TabItem>
@@ -258,8 +277,14 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                            <TextBlock Text="🔧 AUTOMATED SOLUTION REPAIR &amp; DISTILLER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,12"/>
-                            
+                            <DockPanel LastChildFill="False" Margin="0,0,0,8">
+                                <TextBlock Text="🔧 AUTOMATED SOLUTION REPAIR &amp; DISTILLER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                    <Button Content="📊 Export HTML" Command="{Binding ExportRepairHtmlCommand}" Background="#334155" Foreground="White" Padding="10,4" Margin="0,0,6,0" BorderThickness="0"/>
+                                    <Button Content="📗 Export Formatted Excel" Command="{Binding ExportRepairExcelCommand}" Background="#0D9488" Foreground="White" FontWeight="Bold" Padding="10,4" BorderThickness="0"/>
+                                </StackPanel>
+                            </DockPanel>
+
                             <TextBlock Text="Local Solution ZIP File to Repair:" Foreground="#CBD5E1" Margin="0,0,0,4"/>
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
@@ -295,7 +320,13 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                            <TextBlock Text="👥 MULTI-ENVIRONMENT USER &amp; SECURITY ROLE MANAGER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,12"/>
+                            <DockPanel LastChildFill="False" Margin="0,0,0,8">
+                                <TextBlock Text="👥 MULTI-ENVIRONMENT USER &amp; SECURITY ROLE MANAGER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                    <Button Content="📊 Export HTML" Command="{Binding ExportRoleHtmlCommand}" Background="#334155" Foreground="White" Padding="10,4" Margin="0,0,6,0" BorderThickness="0"/>
+                                    <Button Content="📗 Export Formatted Excel" Command="{Binding ExportRoleExcelCommand}" Background="#0D9488" Foreground="White" FontWeight="Bold" Padding="10,4" BorderThickness="0"/>
+                                </StackPanel>
+                            </DockPanel>
 
                             <TextBlock Text="User Emails / UPNs (comma separated):" Foreground="#CBD5E1" Margin="0,0,0,4"/>
                             <TextBox Text="{Binding RoleUserEmails, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6" Margin="0,0,10,0"/>
