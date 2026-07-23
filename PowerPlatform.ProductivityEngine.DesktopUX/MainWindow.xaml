@@ -68,10 +68,10 @@
             <TabControl.ContentTemplate>
                 <DataTemplate>
                     <Grid Margin="0,10,0,0">
-                        <!-- TEMPLATE 0: LANDING PAGE & ENVIRONMENT HUB -->
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <ScrollViewer.Style>
-                                <Style TargetType="ScrollViewer">
+                        <!-- TEMPLATE 0: LANDING PAGE WITH 2 CHILD TABS (REGISTRY & MODULE SUITE) -->
+                        <TabControl Background="Transparent" BorderThickness="0">
+                            <TabControl.Style>
+                                <Style TargetType="TabControl">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding Type}" Value="LandingPage">
@@ -79,35 +79,38 @@
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </ScrollViewer.Style>
+                            </TabControl.Style>
 
-                            <StackPanel Margin="4">
-                                <!-- MASTER DISCOVERED ENVIRONMENTS REGISTRY CARD -->
-                                <Border Background="#1E293B" CornerRadius="8" Padding="16" Margin="0,0,0,16" BorderBrush="#334155" BorderThickness="1">
+                            <!-- CHILD TAB 1: MASTER ENVIRONMENTS REGISTRY (FULL PAGE REAL ESTATE) -->
+                            <TabItem Header="🌐 Master Environments Registry" Foreground="#38BDF8" FontWeight="Bold" Padding="12,6">
+                                <Border Background="#1E293B" CornerRadius="8" Padding="16" Margin="0,10,0,0" BorderBrush="#334155" BorderThickness="1">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="180"/>
+                                            <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
 
-                                        <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+                                        <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
                                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                                                 <TextBlock Text="🌐 MASTER ENVIRONMENTS REGISTRY" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                <TextBlock Text="(Selection applies globally across all modules)" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text="(Global tenant environment repository for all modules)" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                <Button Content="🛡️ Check if Admin" Command="{Binding DataContext.CheckAdminAccessCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#4338CA" Foreground="White" FontWeight="Bold" Padding="10,4" Margin="0,0,6,0" FontSize="11" BorderThickness="0" ToolTip="Check System Administrator role access across tenant environments"/>
-                                                <Button Content="☑️ Select All" Command="{Binding DataContext.SelectAllEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="8,4" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
-                                                <Button Content="🔲 Select None" Command="{Binding DataContext.SelectNoneEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="8,4" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
-                                                <Button Content="➕ Add Env URL" Command="{Binding DataContext.AddManualEnvCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="8,4" FontSize="11" BorderThickness="0"/>
+                                                <TextBlock Text="Sort / Group: " Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"/>
+                                                <ComboBox ItemsSource="{Binding DataContext.SortOptions, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedSortOption, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,3" Margin="0,0,10,0" FontSize="11" Width="140"/>
+
+                                                <Button Content="🛡️ Check if Admin" Command="{Binding DataContext.CheckAdminAccessCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#4338CA" Foreground="White" FontWeight="Bold" Padding="10,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0" ToolTip="Check System Administrator role access across tenant environments"/>
+                                                <Button Content="☑️ Select All" Command="{Binding DataContext.SelectAllEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="8,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
+                                                <Button Content="🔲 Select None" Command="{Binding DataContext.SelectNoneEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="8,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
+                                                <Button Content="➕ Add Env URL" Command="{Binding DataContext.AddManualEnvCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="8,5" FontSize="11" BorderThickness="0"/>
                                             </StackPanel>
                                         </DockPanel>
 
                                         <!-- Filter Input -->
-                                        <TextBox Grid.Row="1" Text="{Binding DataContext.EnvSearchText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6" Margin="0,0,0,8" FontSize="12"/>
+                                        <TextBox Grid.Row="1" Text="{Binding DataContext.EnvSearchText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6" Margin="0,0,0,10" FontSize="12"/>
 
-                                        <!-- Master Environments Grid -->
+                                        <!-- Full Page Master Environments Registry ListBox -->
                                         <ListBox Grid.Row="2" ItemsSource="{Binding DataContext.FilteredEnvironments, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0F172A" BorderBrush="#334155">
                                             <ListBox.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -116,12 +119,23 @@
                                             </ListBox.ItemsPanel>
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="#1E293B" CornerRadius="6" Padding="8" Margin="4" Width="300" BorderBrush="#334155" BorderThickness="1">
+                                                    <Border Background="#1E293B" CornerRadius="8" Padding="12" Margin="6" Width="330" BorderBrush="#334155" BorderThickness="1">
                                                         <DockPanel LastChildFill="True">
-                                                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                                             <StackPanel>
-                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="#F8FAFC" FontSize="13"/>
-                                                                <TextBlock Text="{Binding Url}" Foreground="#94A3B8" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="14">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Foreground" Value="#F8FAFC"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsAdmin}" Value="True">
+                                                                                    <Setter Property="Foreground" Value="#EF4444"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                                <TextBlock Text="{Binding Url}" Foreground="#38BDF8" FontSize="12" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
                                                         </DockPanel>
                                                     </Border>
@@ -130,97 +144,103 @@
                                         </ListBox>
                                     </Grid>
                                 </Border>
+                            </TabItem>
 
-                                <!-- RESPONSIVE 4-COLUMN GRID OF ENGINE MODULE CARDS -->
-                                <TextBlock Text="🚀 ENGINE MODULE SUITE &amp; WORKSPACE LAUNCHER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="4,0,0,10"/>
-                                
-                                <UniformGrid Columns="4" Margin="0,0,0,12">
-                                    <!-- MODULE 7 CARD -->
-                                    <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="🌐 Module 7: Multi-Env Comparator &amp; Solution Explorer" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                            <TextBlock Grid.Row="1" Text="N-Way multi-environment matrix comparison, Root 1 &amp; Root 2 Solution Explorer tree, side-by-side property diffing, de-compiled code &amp; form XML viewer." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                            <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module7" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
-                                        </Grid>
-                                    </Border>
+                            <!-- CHILD TAB 2: MODULE LAUNCHER SUITE (FULL PAGE REAL ESTATE) -->
+                            <TabItem Header="🚀 Engine Module Suite &amp; Launcher" Foreground="#38BDF8" FontWeight="Bold" Padding="12,6">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🚀 ENGINE MODULE SUITE &amp; WORKSPACE LAUNCHER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="4,0,0,12"/>
+                                        
+                                        <UniformGrid Columns="4" Margin="0,0,0,12">
+                                            <!-- MODULE 7 CARD -->
+                                            <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Text="🌐 Module 7: Multi-Env Comparator &amp; Solution Explorer" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="1" Text="N-Way multi-environment matrix comparison, Root 1 &amp; Root 2 Solution Explorer tree, side-by-side property diffing, de-compiled code &amp; form XML viewer." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                                    <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module7" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
+                                                </Grid>
+                                            </Border>
 
-                                    <!-- MODULE 2 CARD -->
-                                    <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="🔍 Module 2: Solution Deep Validator" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                            <TextBlock Grid.Row="1" Text="Executes 19 deep static analysis &amp; compliance checkers on solution ZIP packages across single or multi-tenant environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                            <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module2" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
-                                        </Grid>
-                                    </Border>
+                                            <!-- MODULE 2 CARD -->
+                                            <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Text="🔍 Module 2: Solution Deep Validator" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="1" Text="Executes 19 deep static analysis &amp; compliance checkers on solution ZIP packages across single or multi-tenant environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                                    <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module2" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
+                                                </Grid>
+                                            </Border>
 
-                                    <!-- MODULE 1 CARD -->
-                                    <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="🔧 Module 1: Solution Repair &amp; Distiller" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                            <TextBlock Grid.Row="1" Text="Repairs corrupt solution XML syntax and distills OOB table bloat across environments automatically." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                            <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module1" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
-                                        </Grid>
-                                    </Border>
+                                            <!-- MODULE 1 CARD -->
+                                            <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Text="🔧 Module 1: Solution Repair &amp; Distiller" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="1" Text="Repairs corrupt solution XML syntax and distills OOB table bloat across environments automatically." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                                    <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module1" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
+                                                </Grid>
+                                            </Border>
 
-                                    <!-- MODULE 3 CARD -->
-                                    <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="👥 Module 3: Security Role Lifecycle Manager" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                            <TextBlock Grid.Row="1" Text="Audits user security role drift, business unit assignments, and bulk-synchronizes security roles across tenant environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                            <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module3" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
-                                        </Grid>
-                                    </Border>
+                                            <!-- MODULE 3 CARD -->
+                                            <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#0284C7" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Text="👥 Module 3: Security Role Lifecycle Manager" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="1" Text="Audits user security role drift, business unit assignments, and bulk-synchronizes security roles across tenant environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                                    <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module3" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
+                                                </Grid>
+                                            </Border>
 
-                                    <!-- MODULE 4 CARD -->
-                                    <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#334155" BorderThickness="1">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="⚡ Module 4: Web Resource &amp; JS Transpiler Sync" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                            <TextBlock Grid.Row="1" Text="Diffs TypeScript/JS web resources and deploys live updates directly to Dataverse environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                            <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module4" Background="#334155" Foreground="White" Padding="10,6" BorderThickness="0"/>
-                                        </Grid>
-                                    </Border>
+                                            <!-- MODULE 4 CARD -->
+                                            <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#334155" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Text="⚡ Module 4: Web Resource &amp; JS Transpiler Sync" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="1" Text="Diffs TypeScript/JS web resources and deploys live updates directly to Dataverse environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                                    <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module4" Background="#334155" Foreground="White" Padding="10,6" BorderThickness="0"/>
+                                                </Grid>
+                                            </Border>
 
-                                    <!-- MODULE 5 CARD -->
-                                    <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#334155" BorderThickness="1">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="🔌 Module 5: Plugin Step Diff Engine" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                            <TextBlock Grid.Row="1" Text="De-compiles C# assemblies, diffs plugin steps, filtering attributes, and execution order across environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                            <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module5" Background="#334155" Foreground="White" Padding="10,6" BorderThickness="0"/>
-                                        </Grid>
-                                    </Border>
-                                </UniformGrid>
-                            </StackPanel>
-                        </ScrollViewer>
+                                            <!-- MODULE 5 CARD -->
+                                            <Border Background="#1E293B" CornerRadius="8" Padding="14" Margin="6" BorderBrush="#334155" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Text="🔌 Module 5: Plugin Step Diff Engine" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="1" Text="De-compiles C# assemblies, diffs plugin steps, filtering attributes, and execution order across environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                                    <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module5" Background="#334155" Foreground="White" Padding="10,6" BorderThickness="0"/>
+                                                </Grid>
+                                            </Border>
+                                        </UniformGrid>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
 
                         <!-- TEMPLATE 1: MODULE 7 (COMPARATOR) -->
                         <Grid>
@@ -270,7 +290,19 @@
                                         <ListBox Grid.Row="2" ItemsSource="{Binding DataContext.FilteredEnvironments, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0F172A" BorderBrush="#334155">
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate>
-                                                    <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}" Foreground="#F8FAFC" Margin="4,2"/>
+                                                    <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}" Margin="4,2">
+                                                        <CheckBox.Style>
+                                                            <Style TargetType="CheckBox">
+                                                                <Setter Property="Foreground" Value="#F8FAFC"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsAdmin}" Value="True">
+                                                                        <Setter Property="Foreground" Value="#EF4444"/>
+                                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </CheckBox.Style>
+                                                    </CheckBox>
                                                 </DataTemplate>
                                             </ListBox.ItemTemplate>
                                         </ListBox>

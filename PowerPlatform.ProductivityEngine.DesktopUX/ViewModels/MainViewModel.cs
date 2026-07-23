@@ -52,7 +52,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             set
             {
                 _isAdmin = value;
-                _adminTag = value ? "(Admin)" : "(Non-Admin)";
+                _adminTag = value ? "(Admin)" : "(User)";
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(AdminTag));
                 OnPropertyChanged(nameof(DisplayName));
@@ -176,8 +176,28 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         // Open Dynamic Workspace Tabs
         public ObservableCollection<WorkspaceTabItem> WorkspaceTabs { get; } = new();
 
-        // Environment Search & Master List
+        // Environment Search, Filtering & Sorting State
         private string _envSearchText = string.Empty;
+        private string _selectedSortOption = "AdminFirst";
+
+        public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string>
+        {
+            "🛡️ Admin First",
+            "👤 Non-Admin First",
+            "🔤 Alphabetical (Name)"
+        };
+
+        public string SelectedSortOption
+        {
+            get => _selectedSortOption;
+            set
+            {
+                _selectedSortOption = value;
+                OnPropertyChanged();
+                ApplyEnvFilter();
+            }
+        }
+
         public ObservableCollection<SelectableEnv> AllDiscoveredEnvironments { get; } = new();
         public ObservableCollection<SelectableEnv> FilteredEnvironments { get; } = new();
 
@@ -485,6 +505,19 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 query = query.Where(e => e.RawName.ToLowerInvariant().Contains(term) || e.Url.ToLowerInvariant().Contains(term));
             }
 
+            if (SelectedSortOption != null && SelectedSortOption.Contains("Admin First"))
+            {
+                query = query.OrderByDescending(e => e.IsAdmin).ThenBy(e => e.RawName);
+            }
+            else if (SelectedSortOption != null && SelectedSortOption.Contains("Non-Admin First"))
+            {
+                query = query.OrderBy(e => e.IsAdmin).ThenBy(e => e.RawName);
+            }
+            else
+            {
+                query = query.OrderBy(e => e.RawName);
+            }
+
             foreach (var env in query)
             {
                 FilteredEnvironments.Add(env);
@@ -515,7 +548,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
             var envList = AllDiscoveredEnvironments.ToList();
 
-            // Set initial checking status on UI thread
             foreach (var env in envList)
             {
                 env.AdminTag = "(Checking...)";
@@ -528,8 +560,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 int adminCount = 0;
 
                 var authProvider = new MsalAuthenticationProvider(username: UserEmail);
-
-                // Run fast parallel checks (max 6 parallel checks) with per-environment 6-second timeout
                 var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 6 };
 
                 await Parallel.ForEachAsync(envList, parallelOptions, async (env, ct) =>
@@ -553,6 +583,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
+                            const string SystemAdminRoleTemplateId = "627090ff-40a3-4053-8790-584edc5be201";
+
                             var whoAmIRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/WhoAmI", cts.Token).ConfigureAwait(false);
                             if (whoAmIRes.IsSuccessStatusCode)
                             {
@@ -561,21 +593,87 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                                 {
                                     string userId = userIdProp.GetString() ?? "";
 
-                                    var rolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/systemuserroles_association?$select=name", cts.Token).ConfigureAwait(false);
-                                    if (rolesRes.IsSuccessStatusCode)
+                                    // 1. Check Direct User Roles (both systemuserroles and user_roles)
+                                    var userExpandRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})?$select=systemuserid&$expand=systemuserroles_association($select=name,roletemplateid),user_roles_association($select=name,roletemplateid)", cts.Token).ConfigureAwait(false);
+                                    if (userExpandRes.IsSuccessStatusCode)
                                     {
-                                        using var rolesDoc = await rolesRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
-                                        if (rolesDoc != null && rolesDoc.RootElement.TryGetProperty("value", out var valueArr) && valueArr.ValueKind == JsonValueKind.Array)
+                                        using var userDoc = await userExpandRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
+                                        if (userDoc != null)
                                         {
-                                            foreach (var roleItem in valueArr.EnumerateArray())
+                                            var root = userDoc.RootElement;
+                                            if (root.TryGetProperty("systemuserroles_association", out var sysRoles) && sysRoles.ValueKind == JsonValueKind.Array)
                                             {
-                                                if (roleItem.TryGetProperty("name", out var nameProp) && 
-                                                    "System Administrator".Equals(nameProp.GetString(), StringComparison.OrdinalIgnoreCase))
+                                                foreach (var r in sysRoles.EnumerateArray())
                                                 {
-                                                    isAdmin = true;
-                                                    break;
+                                                    string rName = r.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
+                                                    string rTpl = r.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
+                                                    if (SystemAdminRoleTemplateId.Equals(rTpl, StringComparison.OrdinalIgnoreCase) || 
+                                                        rName.Contains("System Administrator", StringComparison.OrdinalIgnoreCase) || 
+                                                        rName.Contains("SystemAdmin", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        isAdmin = true;
+                                                        break;
+                                                    }
                                                 }
                                             }
+
+                                            if (!isAdmin && root.TryGetProperty("user_roles_association", out var usrRoles) && usrRoles.ValueKind == JsonValueKind.Array)
+                                            {
+                                                foreach (var r in usrRoles.EnumerateArray())
+                                                {
+                                                    string rName = r.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
+                                                    string rTpl = r.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
+                                                    if (SystemAdminRoleTemplateId.Equals(rTpl, StringComparison.OrdinalIgnoreCase) || 
+                                                        rName.Contains("System Administrator", StringComparison.OrdinalIgnoreCase) || 
+                                                        rName.Contains("SystemAdmin", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        isAdmin = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 2. Check Entra ID Group Teams Inherited Roles
+                                    if (!isAdmin)
+                                    {
+                                        var teamRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/teammembership_association?$select=teamid&$expand=teamroles_association($select=name,roletemplateid)", cts.Token).ConfigureAwait(false);
+                                        if (teamRes.IsSuccessStatusCode)
+                                        {
+                                            using var teamDoc = await teamRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
+                                            if (teamDoc != null && teamDoc.RootElement.TryGetProperty("value", out var teamArr) && teamArr.ValueKind == JsonValueKind.Array)
+                                            {
+                                                foreach (var t in teamArr.EnumerateArray())
+                                                {
+                                                    if (t.TryGetProperty("teamroles_association", out var tRoles) && tRoles.ValueKind == JsonValueKind.Array)
+                                                    {
+                                                        foreach (var tr in tRoles.EnumerateArray())
+                                                        {
+                                                            string trName = tr.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
+                                                            string trTpl = tr.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
+                                                            if (SystemAdminRoleTemplateId.Equals(trTpl, StringComparison.OrdinalIgnoreCase) || 
+                                                                trName.Contains("System Administrator", StringComparison.OrdinalIgnoreCase) || 
+                                                                trName.Contains("SystemAdmin", StringComparison.OrdinalIgnoreCase))
+                                                            {
+                                                                isAdmin = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    if (isAdmin) break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 3. Fallback: Probe Admin privilege endpoint (Solution Metadata)
+                                    if (!isAdmin)
+                                    {
+                                        var solRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/solutions?$select=solutionid&$top=1", cts.Token).ConfigureAwait(false);
+                                        if (solRes.IsSuccessStatusCode)
+                                        {
+                                            isAdmin = true;
                                         }
                                     }
                                 }
@@ -590,7 +688,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     int finished = Interlocked.Increment(ref completedCount);
                     if (isAdmin) Interlocked.Increment(ref adminCount);
 
-                    // INSTANT REAL-TIME UI UPDATE AS EACH ITEM FINISHES!
                     Application.Current?.Dispatcher.Invoke(() =>
                     {
                         env.IsAdmin = isAdmin;
