@@ -23,8 +23,9 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
     public class MsalAuthenticationProvider : IAuthenticationProvider
     {
-        // First-party Microsoft Power Platform Client ID (pre-authorized across all Microsoft/Dataverse tenant directories)
-        public const string PowerPlatformFirstPartyClientId = "51483542-4630-471e-966c-a67da48f5d06";
+        // First-party Azure PowerShell / Azure CLI Client ID (51f81489-12ee-4a9e-aaae-a2591f45987d)
+        // Broadly pre-consented across enterprise Microsoft Entra ID tenants (avoiding AADSTS65001 unconsented errors)
+        public const string PowerPlatformFirstPartyClientId = "51f81489-12ee-4a9e-aaae-a2591f45987d";
 
         private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)> TokenCache = 
             new ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)>();
@@ -91,7 +92,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 .WithRedirectUri("http://localhost")
                 .Build();
 
-            string[] scopes = new[] { "https://globaldisco.crm.dynamics.com/user_impersonation" };
+            // Primary scope: .default
+            string[] scopes = new[] { "https://globaldisco.crm.dynamics.com/.default" };
 
             AuthenticationResult authResult;
             try
@@ -109,8 +111,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             }
             catch (MsalException)
             {
-                // Fallback attempt with .default scope
-                scopes = new[] { "https://globaldisco.crm.dynamics.com/.default" };
+                // Fallback attempt with user_impersonation scope
+                scopes = new[] { "https://globaldisco.crm.dynamics.com/user_impersonation" };
                 var acquireTokenBuilder = pca.AcquireTokenInteractive(scopes)
                     .WithPrompt(Prompt.SelectAccount);
 
@@ -168,7 +170,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             }
 
             string resourceUrl = profile.EnvironmentUrl.TrimEnd('/');
-            string scope = $"{resourceUrl}/user_impersonation";
             string cacheKey = $"{profile.EnvironmentUrl}:{profile.Username}:{profile.ClientId}:{profile.ConnectionString}";
 
             if (TokenCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
@@ -206,16 +207,18 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 {
                     string tenant = !string.IsNullOrWhiteSpace(profile.TenantId) ? profile.TenantId : "organizations";
                     string authority = $"https://login.microsoftonline.com/{tenant}";
+                    string clientId = !string.IsNullOrWhiteSpace(profile.ClientId) ? profile.ClientId : PowerPlatformFirstPartyClientId;
 
-                    var pca = PublicClientApplicationBuilder.Create(PowerPlatformFirstPartyClientId)
+                    var pca = PublicClientApplicationBuilder.Create(clientId)
                         .WithAuthority(authority)
                         .WithRedirectUri("http://localhost")
                         .Build();
 
-                    AuthenticationResult authResult;
+                    // Primary scope: .default
+                    string primaryScope = $"{resourceUrl}/.default";
                     try
                     {
-                        var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { scope })
+                        var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { primaryScope })
                             .WithPrompt(Prompt.SelectAccount);
 
                         if (!string.IsNullOrWhiteSpace(profile.Username))
@@ -223,11 +226,13 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                             acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(profile.Username);
                         }
 
-                        authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                        var authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                        token = authResult.AccessToken;
                     }
                     catch (MsalException)
                     {
-                        string fallbackScope = $"{resourceUrl}/.default";
+                        // Fallback scope: user_impersonation
+                        string fallbackScope = $"{resourceUrl}/user_impersonation";
                         var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { fallbackScope })
                             .WithPrompt(Prompt.SelectAccount);
 
@@ -236,10 +241,9 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                             acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(profile.Username);
                         }
 
-                        authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                        var authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                        token = authResult.AccessToken;
                     }
-
-                    token = authResult.AccessToken;
                 }
 
                 var expires = DateTimeOffset.UtcNow.AddHours(1);
