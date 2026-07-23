@@ -5,7 +5,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX
     public partial class CredentialDialog : Window
     {
         public string Username => TxtUsername.Text.Trim();
-        public string TenantId => TxtTenantId.Text.Trim();
+        public string TenantId => string.Empty; // Tenant ID auto-discovered automatically
 
         public CredentialDialog()
         {

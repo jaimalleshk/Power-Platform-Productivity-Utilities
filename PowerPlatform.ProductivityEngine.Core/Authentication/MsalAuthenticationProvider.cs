@@ -44,13 +44,47 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             SharedSsoToken = (token, expiresOn);
         }
 
+        public static async Task<string> AutoDiscoverTenantIdAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username) || !username.Contains('@'))
+                return "common";
+
+            string domain = username.Split('@')[1].Trim();
+            try
+            {
+                using var client = new HttpClient();
+                var url = $"https://login.microsoftonline.com/{domain}/v2.0/.well-known/openid-configuration";
+                var res = await client.GetAsync(url).ConfigureAwait(false);
+                if (res.IsSuccessStatusCode)
+                {
+                    using var doc = await res.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("token_endpoint", out var tokenEp))
+                    {
+                        string epStr = tokenEp.GetString() ?? "";
+                        var parts = epStr.Split('/');
+                        if (parts.Length >= 4 && Guid.TryParse(parts[3], out var tenantGuid))
+                        {
+                            return tenantGuid.ToString();
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return domain; // Fallback to domain name which MSAL resolves automatically
+        }
+
         public async Task<List<DiscoveredTenantEnv>> DiscoverEnvironmentsAsync()
         {
             var discoveredEnvs = new List<DiscoveredTenantEnv>();
 
+            string effectiveTenant = string.IsNullOrWhiteSpace(TenantId)
+                ? await AutoDiscoverTenantIdAsync(PreferredUsername ?? "").ConfigureAwait(false)
+                : TenantId;
+
             var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
             {
-                TenantId = string.IsNullOrWhiteSpace(TenantId) ? "common" : TenantId,
+                TenantId = string.IsNullOrWhiteSpace(effectiveTenant) ? "common" : effectiveTenant,
                 LoginHint = PreferredUsername
             });
 
