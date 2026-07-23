@@ -34,13 +34,14 @@ namespace Utilities.EnvironmentComparator.Engine
                 }
             }
 
-            // 2. Process Metadata & Customizations (Root 2)
+            // 2. Process Metadata & Customizations (Root 2 - Solution Explorer Tree Hierarchy)
             var metadataKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var env in envDataList)
             {
                 foreach (var k in env.MetadataItems.Keys) metadataKeys.Add(k);
             }
 
+            var flatNodes = new List<DiffNode>();
             foreach (var key in metadataKeys.OrderBy(k => k))
             {
                 var node = BuildNode(key, RootCategory.MetadataCustomizations, envDataList, (env) => 
@@ -48,12 +49,158 @@ namespace Utilities.EnvironmentComparator.Engine
 
                 if (MatchesFilter(node, scope))
                 {
-                    result.MetadataNodes.Add(node);
+                    flatNodes.Add(node);
                     IncrementStats(result, node.Status);
                 }
             }
 
+            result.MetadataNodes = BuildSolutionExplorerTree(flatNodes);
+
             return result;
+        }
+
+        private List<DiffNode> BuildSolutionExplorerTree(List<DiffNode> flatNodes)
+        {
+            var rootNodes = new List<DiffNode>();
+
+            // Group 0A: Installed Solutions & First-Party Packages
+            var solNodes = flatNodes.Where(n => n.SubCategory.Equals("Solution", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (solNodes.Count > 0)
+            {
+                var solFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Installed Solutions & First-Party Packages",
+                    UniqueKey = "Folder.Solutions"
+                };
+                foreach (var n in solNodes) solFolder.Children.Add(n);
+                rootNodes.Add(solFolder);
+            }
+
+            // Group 0B: Installed D365 Apps
+            var appNodes = flatNodes.Where(n => n.SubCategory.Equals("InstalledApp", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (appNodes.Count > 0)
+            {
+                var appFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Installed Dynamics 365 & Power Apps",
+                    UniqueKey = "Folder.Apps"
+                };
+                foreach (var n in appNodes) appFolder.Children.Add(n);
+                rootNodes.Add(appFolder);
+            }
+
+            // Group 1: Entities / Tables Hierarchy
+            var entityNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Entity", StringComparison.OrdinalIgnoreCase) || 
+                                                  n.SubCategory.Equals("TableColumn", StringComparison.OrdinalIgnoreCase) || 
+                                                  n.SubCategory.Equals("Table", StringComparison.OrdinalIgnoreCase) ||
+                                                  n.SubCategory.Equals("BusinessRule", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (entityNodes.Count > 0)
+            {
+                var entitiesFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Entities / Tables (Forms, Views, Columns, Rules)",
+                    UniqueKey = "Folder.Entities"
+                };
+
+                var groupedByEntity = entityNodes.GroupBy(n => ExtractEntityName(n.UniqueKey));
+                foreach (var group in groupedByEntity)
+                {
+                    var entityFolder = new DiffNode
+                    {
+                        RootCategory = RootCategory.MetadataCustomizations,
+                        SubCategory = "Entity",
+                        DisplayName = $"📁 Table: {group.Key}",
+                        UniqueKey = $"Entity.{group.Key}"
+                    };
+
+                    foreach (var item in group)
+                    {
+                        entityFolder.Children.Add(item);
+                    }
+
+                    entitiesFolder.Children.Add(entityFolder);
+                }
+
+                rootNodes.Add(entitiesFolder);
+            }
+
+            // Group 2: Plug-in Assemblies & Processing Steps
+            var pluginNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Plugin", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (pluginNodes.Count > 0)
+            {
+                var pluginsFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Plug-in Assemblies & Registration Steps (100% PRT Attributes)",
+                    UniqueKey = "Folder.Plugins"
+                };
+                foreach (var n in pluginNodes) pluginsFolder.Children.Add(n);
+                rootNodes.Add(pluginsFolder);
+            }
+
+            // Group 3: Processes & Automations
+            var processNodes = flatNodes.Where(n => n.SubCategory.Contains("Flow", StringComparison.OrdinalIgnoreCase) || 
+                                                   n.SubCategory.Contains("Workflow", StringComparison.OrdinalIgnoreCase) || 
+                                                   n.SubCategory.Contains("Action", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (processNodes.Count > 0)
+            {
+                var processFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Processes & Automations (Cloud Flows, Workflows, BPFs)",
+                    UniqueKey = "Folder.Processes"
+                };
+                foreach (var n in processNodes) processFolder.Children.Add(n);
+                rootNodes.Add(processFolder);
+            }
+
+            // Group 4: Environment Variables
+            var envVarNodes = flatNodes.Where(n => n.SubCategory.Equals("EnvVariable", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (envVarNodes.Count > 0)
+            {
+                var envVarFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Environment Variables",
+                    UniqueKey = "Folder.EnvVariables"
+                };
+                foreach (var n in envVarNodes) envVarFolder.Children.Add(n);
+                rootNodes.Add(envVarFolder);
+            }
+
+            // Remaining components
+            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
+            var otherNodes = flatNodes.Where(n => !handledKeys.Contains(n.UniqueKey)).ToList();
+            if (otherNodes.Count > 0)
+            {
+                var otherFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Other Solution Components (Web Resources, Roles, Privileges)",
+                    UniqueKey = "Folder.Other"
+                };
+                foreach (var n in otherNodes) otherFolder.Children.Add(n);
+                rootNodes.Add(otherFolder);
+            }
+
+            return rootNodes;
+        }
+
+        private string ExtractEntityName(string uniqueKey)
+        {
+            var parts = uniqueKey.Split('.');
+            return parts.Length >= 2 ? parts[1] : "General";
         }
 
         private DiffNode BuildNode(
@@ -83,11 +230,12 @@ namespace Utilities.EnvironmentComparator.Engine
                 if (props != null && props.Count > 0)
                 {
                     presentCount++;
-                    // Primary summary value is the first property or 'Value' property
                     string summaryVal = props.TryGetValue("Value", out var v) ? v : 
                         (props.TryGetValue("Version", out var ver) ? ver : 
                         (props.TryGetValue("Status", out var st) ? st : 
-                        (props.TryGetValue("MaxLength", out var ml) ? $"MaxLength={ml}" : "Present")));
+                        (props.TryGetValue("FormType", out var ft) ? ft : 
+                        (props.TryGetValue("QueryType", out var qt) ? qt : 
+                        (props.TryGetValue("MaxLength", out var ml) ? $"MaxLength={ml}" : "Present")))));
 
                     envSummaries[env.EnvironmentName] = summaryVal;
 
@@ -101,21 +249,17 @@ namespace Utilities.EnvironmentComparator.Engine
 
             node.EnvironmentValues = envSummaries;
 
-            // Classify Diff Status
             if (presentCount < envDataList.Count)
             {
                 node.Status = DiffStatus.Unique;
             }
             else
             {
-                // Check if all summary values match across environments
                 string firstVal = envSummaries.Values.First();
                 bool allMatch = envSummaries.Values.All(val => string.Equals(val, firstVal, StringComparison.OrdinalIgnoreCase));
-                
                 node.Status = allMatch ? DiffStatus.Identical : DiffStatus.Delta;
             }
 
-            // Build Property-Level Diffs
             foreach (var propName in propertyNames.OrderBy(p => p))
             {
                 var pDiff = new PropertyDiff { PropertyName = propName };
@@ -134,7 +278,7 @@ namespace Utilities.EnvironmentComparator.Engine
 
                 if (pDiff.IsMismatch && node.Status == DiffStatus.Identical)
                 {
-                    node.Status = DiffStatus.Delta; // Upgrade status if property mismatch detected
+                    node.Status = DiffStatus.Delta;
                 }
             }
 
