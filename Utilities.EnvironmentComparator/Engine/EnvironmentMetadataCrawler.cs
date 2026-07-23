@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using PowerPlatform.ProductivityEngine.Core.Connections;
+using PowerPlatform.ProductivityEngine.Core.Logging;
 using PowerPlatform.ProductivityEngine.Core.Reporting;
 using Utilities.EnvironmentComparator.Models;
 
@@ -38,67 +39,80 @@ namespace Utilities.EnvironmentComparator.Engine
                 : profile.EnvironmentUrl ?? "Environment";
 
             var rawData = new RawEnvData { EnvironmentName = envName };
+            AppLogger.LogInfo("Comparator", $"[START CRAWL] Commencing environment metadata crawl for '{envName}' ({profile.EnvironmentUrl})...");
 
             if (_useSimulationMode)
             {
                 await Task.Delay(300).ConfigureAwait(false);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling Default Solution, Active Unmanaged Layers, Solution Component Layers, & D365 components for {envName}...", PercentComplete = 50 });
+                string msg1 = $"[SIMULATION] Crawling Default Solution, Active Unmanaged Layers, Solution Component Layers, & D365 components for {envName}...";
+                AppLogger.LogInfo("Comparator", msg1);
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = msg1, PercentComplete = 50 });
                 GenerateSimulationData(envName, rawData, scope);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed Default Solution, Solution Layers, & Unmanaged Layer crawl for {envName}.", PercentComplete = 100 });
+                string msg2 = $"[SIMULATION] Completed Default Solution, Solution Layers, & Unmanaged Layer crawl for {envName}.";
+                AppLogger.LogSuccess("Comparator", msg2);
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = msg2, PercentComplete = 100 });
                 return rawData;
             }
 
             using var httpClient = _connectionFactory.CreateHttpClient(profile);
 
+            void ReportAndLog(string stage, string message, int percent)
+            {
+                AppLogger.LogInfo("Comparator", $"[{envName}] [{stage}] {message}");
+                progress?.Report(new ProgressUpdate { Stage = stage, Message = $"[{envName}] {message}", PercentComplete = percent });
+            }
+
             // 1. Crawl Admin Settings & Environment Variables (Root 1)
-            progress?.Report(new ProgressUpdate { Stage = "Admin Crawl", Message = $"[{envName}] Fetching Organization Settings & Environment Variable Values...", PercentComplete = 10 });
+            ReportAndLog("Admin Crawl", "Fetching Organization Settings & Environment Variable Values...", 10);
             await CrawlAdminSettingsAsync(httpClient, envName, rawData).ConfigureAwait(false);
             await CrawlEnvVariablesAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 2. Crawl Default Solution, Managed & Unmanaged Customizations
-            progress?.Report(new ProgressUpdate { Stage = "Solutions Crawl", Message = $"[{envName}] Fetching Default Solution & Solution Inventories...", PercentComplete = 20 });
+            ReportAndLog("Solutions Crawl", "Fetching Default Solution & Solution Inventories...", 20);
             await CrawlSolutionsAndAppsAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 3. Crawl Active Unmanaged Layers & Solution Component Layers
-            progress?.Report(new ProgressUpdate { Stage = "Solution Layers Crawl", Message = $"[{envName}] Fetching Active Unmanaged Layers & Solution Component Layers...", PercentComplete = 30 });
+            ReportAndLog("Solution Layers Crawl", "Fetching Active Unmanaged Layers & Solution Component Layers...", 30);
             await CrawlSolutionComponentLayersAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 4. Crawl System & Interactive Dashboards
-            progress?.Report(new ProgressUpdate { Stage = "Dashboards Crawl", Message = $"[{envName}] Fetching System Dashboards & User Dashboards...", PercentComplete = 40 });
+            ReportAndLog("Dashboards Crawl", "Fetching System Dashboards & User Dashboards...", 40);
             await CrawlDashboardsAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 5. Crawl PCF Controls & Custom Control Resources
-            progress?.Report(new ProgressUpdate { Stage = "PCF Crawl", Message = $"[{envName}] Fetching PCF Controls (customcontrols)...", PercentComplete = 50 });
+            ReportAndLog("PCF Crawl", "Fetching PCF Controls (customcontrols)...", 50);
             await CrawlPcfControlsAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 6. Crawl SiteMaps
-            progress?.Report(new ProgressUpdate { Stage = "SiteMaps Crawl", Message = $"[{envName}] Fetching Site Maps & Navigation Menus...", PercentComplete = 60 });
+            ReportAndLog("SiteMaps Crawl", "Fetching Site Maps & Navigation Menus...", 60);
             await CrawlSiteMapsAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 7. Crawl Field Security Profiles & Permissions
-            progress?.Report(new ProgressUpdate { Stage = "Security Crawl", Message = $"[{envName}] Fetching Field Security Profiles...", PercentComplete = 70 });
+            ReportAndLog("Security Crawl", "Fetching Field Security Profiles...", 70);
             await CrawlFieldSecurityProfilesAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 8. Crawl Connection References & Custom Connectors
-            progress?.Report(new ProgressUpdate { Stage = "Connectors Crawl", Message = $"[{envName}] Fetching Connection References & Custom Connectors...", PercentComplete = 75 });
+            ReportAndLog("Connectors Crawl", "Fetching Connection References & Custom Connectors...", 75);
             await CrawlConnectionReferencesAndConnectorsAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 9. Crawl Copilot Studio Bots & Topics
-            progress?.Report(new ProgressUpdate { Stage = "Copilot Studio Crawl", Message = $"[{envName}] Fetching Copilot Studio Bots & Topics...", PercentComplete = 80 });
+            ReportAndLog("Copilot Studio Crawl", "Fetching Copilot Studio Bots & Topics...", 80);
             await CrawlCopilotStudioAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 10. Crawl Plug-in Assemblies & Custom APIs
-            progress?.Report(new ProgressUpdate { Stage = "Plugins Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies & Custom APIs...", PercentComplete = 88 });
+            ReportAndLog("Plugins Crawl", "Fetching Plug-in Assemblies & Custom APIs...", 88);
             await CrawlPluginsAndCustomApisAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 11. Crawl Forms, Views, Canvas Apps, Custom Pages, & Tables
-            progress?.Report(new ProgressUpdate { Stage = "Tables Crawl", Message = $"[{envName}] Fetching Forms, Views, Columns, & OOB/Custom Tables...", PercentComplete = 95 });
+            ReportAndLog("Tables Crawl", "Fetching Forms, Views, Columns, & OOB/Custom Tables...", 95);
             await CrawlFormsViewsAndCanvasAppsAsync(httpClient, rawData).ConfigureAwait(false);
             await CrawlTablesAsync(httpClient, rawData).ConfigureAwait(false);
 
             // Execute Extensibility Providers
+            ReportAndLog("Extensibility", "Executing Extensibility Providers...", 98);
             await ComparisonProviderRegistry.ExecuteAllProvidersAsync(httpClient, envName, rawData, scope).ConfigureAwait(false);
 
+            AppLogger.LogSuccess("Comparator", $"[{envName}] Completed full D365 non-transactional metadata crawl! Total metadata categories: {rawData.MetadataItems.Count}");
             progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Completed full D365 non-transactional metadata crawl.", PercentComplete = 100 });
             return rawData;
         }

@@ -132,7 +132,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         SolutionRepair,
         SecurityRoleManager,
         WebResourceSync,
-        PluginDiff
+        PluginDiff,
+        ConsoleLog
     }
 
     public class WorkspaceTabItem : INotifyPropertyChanged
@@ -233,8 +234,12 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         private string _roleBusinessUnit = string.Empty;
         private string _roleLogMessage = "Ready to audit or synchronize security roles across environments.";
 
-        // Universal In-UX Excel Grid Rows
+        // Universal In-UX Excel Grid Rows & Live Console Logs
         public ObservableCollection<KeyValueRow> ModuleExcelGridRows { get; } = new();
+        public ObservableCollection<PowerPlatform.ProductivityEngine.Core.Logging.LogEntry> LiveConsoleLogs { get; } = new();
+
+        public ICommand ClearConsoleCommand { get; }
+        public ICommand ExportConsoleLogsCommand { get; }
 
         // Properties - Navigation & Module Switching
         public int SelectedTabIndex
@@ -400,8 +405,29 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             ExportRoleHtmlCommand = new RelayCommand(_ => ExportRoleHtml());
             ExportRoleExcelCommand = new RelayCommand(_ => ExportRoleExcel());
 
-            // Initialize Landing Page Workspace Tab
+            ClearConsoleCommand = new RelayCommand(_ => { LiveConsoleLogs.Clear(); PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.Clear(); });
+            ExportConsoleLogsCommand = new RelayCommand(_ => ExportConsoleLogs());
+
+            // Initialize Permanent Execution Console Log Tab (Pinned, index 0)
+            WorkspaceTabs.Add(new WorkspaceTabItem("📜 System Execution Console", ModuleType.ConsoleLog, false, CloseWorkspaceTab));
+
+            // Initialize Landing Page Workspace Tab (index 1)
             WorkspaceTabs.Add(new WorkspaceTabItem("🏠 Landing Page & Environment Hub", ModuleType.LandingPage, false, CloseWorkspaceTab));
+
+            // Subscribe to Core Real-Time AppLogger
+            PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.OnLogReceived += (sender, entry) =>
+            {
+                Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    LiveConsoleLogs.Add(entry);
+                    while (LiveConsoleLogs.Count > 3000)
+                    {
+                        LiveConsoleLogs.RemoveAt(0);
+                    }
+                }));
+            };
+
+            PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogInfo("System", "Power Platform Productivity Engine core logging system online. Live execution console active.");
 
             // Load saved settings if available
             var settings = UserSettingsManager.LoadSettings();
@@ -890,7 +916,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             int totalEnvs = profiles.Count;
 
             var progress = new Progress<ProgressUpdate>(p => {
-                Application.Current.Dispatcher.Invoke(() =>
+                Application.Current?.Dispatcher.Invoke(() =>
                 {
                     double stepPct = (double)currentEnvIndex / totalEnvs * 100;
                     ProgressPercentage = Math.Min(95, p.PercentComplete > 0 ? p.PercentComplete : stepPct);
@@ -899,66 +925,100 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 });
             });
 
-            try
+            await Task.Run(async () =>
             {
-                foreach (var profile in profiles)
+                try
                 {
-                    currentEnvIndex++;
-                    var data = await crawler.CrawlEnvironmentAsync(profile, Scope, progress);
-                    _lastRawEnvDataList.Add(data);
+                    foreach (var profile in profiles)
+                    {
+                        currentEnvIndex++;
+                        try
+                        {
+                            var data = await crawler.CrawlEnvironmentAsync(profile, Scope, progress).ConfigureAwait(false);
+                            _lastRawEnvDataList.Add(data);
+                        }
+                        catch (Exception exEnv)
+                        {
+                            PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogError("Comparator", $"Failed to crawl environment '{profile.EnvironmentUrl}': {exEnv.Message}", exEnv);
+                        }
+                    }
+
+                    if (_lastRawEnvDataList.Count == 0)
+                    {
+                        PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogWarning("Comparator", "No environment metadata could be retrieved.");
+                        Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            StatusMessage = "No environment metadata could be retrieved.";
+                            IsLoading = false;
+                        });
+                        return;
+                    }
+
+                    PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogInfo("Comparator", "Executing N-Way Matrix Diffing & Solution Explorer Tree Building...");
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        ProgressDetails = "Executing N-Way Matrix Diffing & Solution Explorer Tree Building...";
+                        StatusMessage = ProgressDetails;
+                    });
+
+                    var comparer = new NWayComparer();
+                    _lastResult = comparer.CompareEnvironments(_lastRawEnvDataList, Scope);
+
+                    var root1Folder = new DiffNode
+                    {
+                        RootCategory = RootCategory.AdminSettings,
+                        SubCategory = "Folder",
+                        DisplayName = "📁 Root 1: Admin & Environment Settings (OrgDbOrgSettings, Security, EnvVars)",
+                        UniqueKey = "Root1.AdminSettings"
+                    };
+                    foreach (var n in _lastResult.AdminSettingsNodes) root1Folder.Children.Add(n);
+
+                    var root2Folder = new DiffNode
+                    {
+                        RootCategory = RootCategory.MetadataCustomizations,
+                        SubCategory = "Folder",
+                        DisplayName = "📁 Root 2: Solution Explorer & Customizations (Solutions, Apps, Tables, Plugins)",
+                        UniqueKey = "Root2.SolutionExplorer"
+                    };
+                    foreach (var n in _lastResult.MetadataNodes) root2Folder.Children.Add(n);
+
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        UnifiedSolutionExplorerTree.Add(root1Folder);
+                        UnifiedSolutionExplorerTree.Add(root2Folder);
+
+                        TotalItems = _lastResult.TotalCount;
+                        IdenticalCount = _lastResult.IdenticalCount;
+                        DeltaCount = _lastResult.DeltaCount;
+                        UniqueCount = _lastResult.UniqueCount;
+
+                        ProgressPercentage = 100;
+                        ProgressDetails = isSingleEnv
+                            ? $"Exploration complete for {selectedEnvs[0].DisplayName}. Total components: {TotalItems}."
+                            : $"Comparison complete across {selectedEnvs.Count} environments. Found {_lastResult.DeltaCount} Deltas, {_lastResult.UniqueCount} Unique items.";
+
+                        StatusMessage = ProgressDetails;
+                    });
+
+                    PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogSuccess("Comparator", $"Comparison complete! Tree populated with {_lastResult.TotalCount} total components across {_lastRawEnvDataList.Count} environment(s).");
                 }
-
-                ProgressDetails = "Executing N-Way Matrix Diffing & Solution Explorer Tree Building...";
-                StatusMessage = ProgressDetails;
-
-                var comparer = new NWayComparer();
-                _lastResult = comparer.CompareEnvironments(_lastRawEnvDataList, Scope);
-
-                var root1Folder = new DiffNode
+                catch (Exception ex)
                 {
-                    RootCategory = RootCategory.AdminSettings,
-                    SubCategory = "Folder",
-                    DisplayName = "📁 Root 1: Admin & Environment Settings (OrgDbOrgSettings, Security, EnvVars)",
-                    UniqueKey = "Root1.AdminSettings"
-                };
-                foreach (var n in _lastResult.AdminSettingsNodes) root1Folder.Children.Add(n);
-
-                var root2Folder = new DiffNode
+                    PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogError("Comparator", $"Error during comparison engine execution: {ex.Message}", ex);
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"Crawl / Comparison Error:\n{ex.Message}", "Comparison Failure", MessageBoxButton.OK, MessageBoxImage.Error);
+                        StatusMessage = $"Error during comparison: {ex.Message}";
+                    });
+                }
+                finally
                 {
-                    RootCategory = RootCategory.MetadataCustomizations,
-                    SubCategory = "Folder",
-                    DisplayName = "📁 Root 2: Solution Explorer & Customizations (Solutions, Apps, Tables, Plugins)",
-                    UniqueKey = "Root2.SolutionExplorer"
-                };
-                foreach (var n in _lastResult.MetadataNodes) root2Folder.Children.Add(n);
-
-                UnifiedSolutionExplorerTree.Add(root1Folder);
-                UnifiedSolutionExplorerTree.Add(root2Folder);
-
-                TotalItems = _lastResult.TotalCount;
-                IdenticalCount = _lastResult.IdenticalCount;
-                DeltaCount = _lastResult.DeltaCount;
-                UniqueCount = _lastResult.UniqueCount;
-
-                ProgressPercentage = 100;
-                ProgressDetails = isSingleEnv
-                    ? $"Exploration complete for {selectedEnvs[0].DisplayName}. Total components: {TotalItems}."
-                    : $"Comparison complete across {selectedEnvs.Count} environments. Found {_lastResult.DeltaCount} Deltas, {_lastResult.UniqueCount} Unique items.";
-
-                StatusMessage = ProgressDetails;
-            }
-            catch (Exception ex)
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show($"Crawl / Comparison Error:\n{ex.Message}", "Comparison Failure", MessageBoxButton.OK, MessageBoxImage.Error);
-                });
-                StatusMessage = $"Error during comparison: {ex.Message}";
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        IsLoading = false;
+                    });
+                }
+            }).ConfigureAwait(false);
         }
 
         private void AddManualEnvironment()
@@ -1357,6 +1417,21 @@ function onAccountSave(executionContext) {{
             var exporter = new ComparatorExporter();
             exporter.ExportFormattedExcel(path, _lastResult);
             StatusMessage = $"Exported Formatted Multi-Worksheet Excel Report to {path}";
+        }
+
+        private void ExportConsoleLogs()
+        {
+            try
+            {
+                string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"System_Execution_Logs_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+                var lines = LiveConsoleLogs.Select(l => l.DisplayText);
+                File.WriteAllLines(path, lines);
+                StatusMessage = $"Exported System Execution Console logs to '{path}'";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error exporting log file: {ex.Message}";
+            }
         }
 
         private void SaveToSqlite()

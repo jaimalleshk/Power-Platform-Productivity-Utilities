@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using PowerPlatform.ProductivityEngine.Core.Logging;
 using Utilities.EnvironmentComparator.Models;
 
 namespace Utilities.EnvironmentComparator.Engine
@@ -9,6 +10,8 @@ namespace Utilities.EnvironmentComparator.Engine
     {
         public ComparisonResult CompareEnvironments(List<RawEnvData> envDataList, ComparisonScope scope)
         {
+            AppLogger.LogInfo("Comparator", $"[N-WAY MATRIX] Starting N-Way matrix comparison across {envDataList.Count} environment(s)...");
+
             var result = new ComparisonResult
             {
                 TargetEnvironmentNames = envDataList.Select(e => e.EnvironmentName).ToList(),
@@ -57,6 +60,7 @@ namespace Utilities.EnvironmentComparator.Engine
             }
 
             result.MetadataNodes = BuildSolutionExplorerTree(flatNodes);
+            AppLogger.LogSuccess("Comparator", $"[N-WAY MATRIX] Comparison completed! Identical: {result.IdenticalCount}, Differences: {result.DeltaCount}, Unique: {result.UniqueCount}");
 
             return result;
         }
