@@ -47,16 +47,19 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             SharedSsoToken = (token, expiresOn);
         }
 
-        public static async Task<string> AutoDiscoverTenantIdAsync(string username)
+        public static async Task<string> AutoDiscoverTenantIdAsync(string domain)
         {
-            if (string.IsNullOrWhiteSpace(username) || !username.Contains('@'))
-                return "organizations";
+            if (string.IsNullOrWhiteSpace(domain)) return "organizations";
 
-            string domain = username.Split('@')[1].Trim();
+            if (domain.Contains('@'))
+            {
+                domain = domain.Split('@')[1];
+            }
+
             try
             {
                 using var client = new HttpClient();
-                var url = $"https://login.microsoftonline.com/{domain}/v2.0/.well-known/openid-configuration";
+                string url = $"https://login.microsoftonline.com/{domain}/v2.0/.well-known/openid-configuration";
                 var res = await client.GetAsync(url).ConfigureAwait(false);
                 if (res.IsSuccessStatusCode)
                 {
@@ -74,7 +77,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             }
             catch { }
 
-            return domain; // Fallback to domain name which MSAL resolves automatically
+            return domain;
         }
 
         public async Task<List<DiscoveredTenantEnv>> DiscoverEnvironmentsAsync(Action<string>? progressCallback = null)
@@ -102,32 +105,13 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             AuthenticationResult authResult;
             try
             {
-                // Force SelectAccount prompt and UseEmbeddedWebView for embedded desktop popup dialog instead of external browser tab
-                var acquireTokenBuilder = pca.AcquireTokenInteractive(scopes)
-                    .WithPrompt(Prompt.SelectAccount)
-                    .WithUseEmbeddedWebView(true);
-
-                if (!string.IsNullOrWhiteSpace(PreferredUsername))
-                {
-                    acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(PreferredUsername);
-                }
-
-                authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                authResult = await AcquireTokenWithFallbacksAsync(pca, scopes, PreferredUsername).ConfigureAwait(false);
             }
-            catch (MsalException)
+            catch
             {
-                // Fallback attempt with user_impersonation scope
+                // Fallback scope attempt: user_impersonation
                 scopes = new[] { "https://globaldisco.crm.dynamics.com/user_impersonation" };
-                var acquireTokenBuilder = pca.AcquireTokenInteractive(scopes)
-                    .WithPrompt(Prompt.SelectAccount)
-                    .WithUseEmbeddedWebView(true);
-
-                if (!string.IsNullOrWhiteSpace(PreferredUsername))
-                {
-                    acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(PreferredUsername);
-                }
-
-                authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                authResult = await AcquireTokenWithFallbacksAsync(pca, scopes, PreferredUsername).ConfigureAwait(false);
             }
 
             string token = authResult.AccessToken;
@@ -146,71 +130,54 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 "https://globaldisco.crm.dynamics.com/api/discovery/v9.0/Instances"
             };
 
-            HttpResponseMessage? lastResponse = null;
-
-            foreach (var endpoint in endpoints)
+            foreach (var ep in endpoints)
             {
                 try
                 {
-                    var response = await httpClient.GetAsync(endpoint).ConfigureAwait(false);
-                    lastResponse = response;
-
-                    if (response.IsSuccessStatusCode)
+                    progressCallback?.Invoke($"Querying Global Discovery Endpoint: {ep}");
+                    var res = await httpClient.GetAsync(ep).ConfigureAwait(false);
+                    if (res.IsSuccessStatusCode)
                     {
-                        using var doc = await response.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
-                        if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                        using var doc = await res.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                        if (doc != null && doc.RootElement.TryGetProperty("value", out var valArr) && valArr.ValueKind == JsonValueKind.Array)
                         {
-                            foreach (var inst in value.EnumerateArray())
+                            foreach (var item in valArr.EnumerateArray())
                             {
-                                string name = inst.TryGetProperty("FriendlyName", out var fn) ? fn.GetString() ?? "" : "";
-                                string url = inst.TryGetProperty("ApiUrl", out var u) ? u.GetString() ?? "" : "";
-                                if (string.IsNullOrEmpty(url) && inst.TryGetProperty("Url", out var mainUrl))
+                                string name = item.TryGetProperty("FriendlyName", out var fn) ? fn.GetString() ?? "" : "";
+                                string url = item.TryGetProperty("Url", out var u) ? u.GetString() ?? "" : "";
+                                if (string.IsNullOrEmpty(url) && item.TryGetProperty("ApiUrl", out var au))
                                 {
-                                    url = mainUrl.GetString() ?? "";
+                                    url = au.GetString() ?? "";
                                 }
-                                string id = inst.TryGetProperty("Id", out var i) ? i.GetString() ?? "" : "";
-                                if (string.IsNullOrEmpty(name) && inst.TryGetProperty("UniqueName", out var un))
+                                string envId = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() ?? "" : "";
+
+                                if (string.IsNullOrEmpty(name))
                                 {
-                                    name = un.GetString() ?? "";
+                                    name = item.TryGetProperty("UniqueName", out var un) ? un.GetString() ?? "" : "Dataverse Environment";
                                 }
 
-                                if (!string.IsNullOrEmpty(url))
+                                if (!string.IsNullOrEmpty(url) && !discoveredEnvs.Any(e => e.Url.Equals(url, StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                                    discoveredEnvs.Add(new DiscoveredTenantEnv
                                     {
-                                        url = "https://" + url;
-                                    }
-
-                                    if (!discoveredEnvs.Any(e => e.Url.Equals(url, StringComparison.OrdinalIgnoreCase)))
-                                    {
-                                        discoveredEnvs.Add(new DiscoveredTenantEnv
-                                        {
-                                            Name = string.IsNullOrEmpty(name) ? url : name,
-                                            Url = url,
-                                            EnvironmentId = id
-                                        });
-                                    }
+                                        Name = name,
+                                        Url = url,
+                                        EnvironmentId = envId
+                                    });
                                 }
                             }
+                        }
 
-                            if (discoveredEnvs.Count > 0)
-                            {
-                                progressCallback?.Invoke($"Discovered {discoveredEnvs.Count} tenant environments from Global Discovery Service.");
-                                break;
-                            }
+                        if (discoveredEnvs.Count > 0)
+                        {
+                            break; // Stop after first successful endpoint return
                         }
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    progressCallback?.Invoke($"Discovery endpoint {endpoint} notice: {ex.Message}");
+                    // Fallback to next endpoint
                 }
-            }
-
-            if (discoveredEnvs.Count == 0 && lastResponse != null && !lastResponse.IsSuccessStatusCode)
-            {
-                string errBody = await lastResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                throw new InvalidOperationException($"Global Discovery endpoint returned status {(int)lastResponse.StatusCode} ({lastResponse.ReasonPhrase}). Details: {errBody}");
             }
 
             return discoveredEnvs;
@@ -218,37 +185,44 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
         public async Task<string> GetAccessTokenAsync(ConnectionProfile profile)
         {
-            if (profile == null)
-                throw new ArgumentNullException(nameof(profile));
-
-            // Check if Single Sign-On (SSO) shared token is active and valid
-            if (SharedSsoToken.HasValue && SharedSsoToken.Value.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(2))
-            {
-                return SharedSsoToken.Value.Token;
-            }
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
 
             string resourceUrl = profile.EnvironmentUrl.TrimEnd('/');
-            string cacheKey = $"{profile.EnvironmentUrl}:{profile.Username}:{profile.ClientId}:{profile.ConnectionString}";
+            string cacheKey = $"{resourceUrl}_{profile.Username}";
 
-            if (TokenCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
+            if (TokenCache.TryGetValue(cacheKey, out var cachedToken))
             {
-                return cached.Token;
+                if (DateTimeOffset.UtcNow.AddMinutes(5) < cachedToken.ExpiresOn)
+                {
+                    return cachedToken.Token;
+                }
+            }
+
+            if (SharedSsoToken.HasValue && DateTimeOffset.UtcNow.AddMinutes(5) < SharedSsoToken.Value.ExpiresOn)
+            {
+                TokenCache[cacheKey] = SharedSsoToken.Value;
+                return SharedSsoToken.Value.Token;
             }
 
             await AuthSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (TokenCache.TryGetValue(cacheKey, out cached) && cached.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
+                if (TokenCache.TryGetValue(cacheKey, out cachedToken))
                 {
-                    return cached.Token;
+                    if (DateTimeOffset.UtcNow.AddMinutes(5) < cachedToken.ExpiresOn)
+                    {
+                        return cachedToken.Token;
+                    }
                 }
 
-                string token;
+                string token = string.Empty;
 
                 if (!string.IsNullOrWhiteSpace(profile.ConnectionString))
                 {
-                    using (var serviceClient = new ServiceClient(profile.ConnectionString))
+                    if (profile.ConnectionString.Contains("AuthType=OAuth", StringComparison.OrdinalIgnoreCase) ||
+                        profile.ConnectionString.Contains("AuthType=ClientSecret", StringComparison.OrdinalIgnoreCase))
                     {
+                        using var serviceClient = new ServiceClient(profile.ConnectionString);
                         if (!serviceClient.IsReady)
                         {
                             throw new InvalidOperationException($"Failed to connect using connection string: {serviceClient.LastError}", serviceClient.LastException);
@@ -272,36 +246,16 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                         .WithRedirectUri("http://localhost")
                         .Build();
 
-                    // Primary scope: .default
-                    string primaryScope = $"{resourceUrl}/.default";
+                    string[] primaryScope = new[] { $"{resourceUrl}/.default" };
                     try
                     {
-                        var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { primaryScope })
-                            .WithPrompt(Prompt.SelectAccount)
-                            .WithUseEmbeddedWebView(true);
-
-                        if (!string.IsNullOrWhiteSpace(profile.Username))
-                        {
-                            acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(profile.Username);
-                        }
-
-                        var authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                        var authResult = await AcquireTokenWithFallbacksAsync(pca, primaryScope, profile.Username).ConfigureAwait(false);
                         token = authResult.AccessToken;
                     }
                     catch (MsalException)
                     {
-                        // Fallback scope: user_impersonation
-                        string fallbackScope = $"{resourceUrl}/user_impersonation";
-                        var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { fallbackScope })
-                            .WithPrompt(Prompt.SelectAccount)
-                            .WithUseEmbeddedWebView(true);
-
-                        if (!string.IsNullOrWhiteSpace(profile.Username))
-                        {
-                            acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(profile.Username);
-                        }
-
-                        var authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                        string[] fallbackScope = new[] { $"{resourceUrl}/user_impersonation" };
+                        var authResult = await AcquireTokenWithFallbacksAsync(pca, fallbackScope, profile.Username).ConfigureAwait(false);
                         token = authResult.AccessToken;
                     }
                 }
@@ -319,19 +273,53 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             }
         }
 
+        private static async Task<AuthenticationResult> AcquireTokenWithFallbacksAsync(IPublicClientApplication pca, string[] scopes, string? username)
+        {
+            // Attempt 1: Embedded WebView popup window
+            try
+            {
+                var builder = pca.AcquireTokenInteractive(scopes)
+                    .WithPrompt(Prompt.SelectAccount)
+                    .WithUseEmbeddedWebView(true);
+
+                if (!string.IsNullOrWhiteSpace(username))
+                {
+                    builder = builder.WithLoginHint(username);
+                }
+
+                return await builder.ExecuteAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Attempt 2: Fallback to System Web Browser if embedded WebView fails or is blocked on OS
+                var builder = pca.AcquireTokenInteractive(scopes)
+                    .WithPrompt(Prompt.SelectAccount)
+                    .WithUseEmbeddedWebView(false);
+
+                if (!string.IsNullOrWhiteSpace(username))
+                {
+                    builder = builder.WithLoginHint(username);
+                }
+
+                return await builder.ExecuteAsync().ConfigureAwait(false);
+            }
+        }
+
         public void ClearTokenCache(string environmentUrl)
         {
             if (string.IsNullOrWhiteSpace(environmentUrl))
             {
                 TokenCache.Clear();
                 SharedSsoToken = null;
-                return;
             }
-
-            var keysToRemove = TokenCache.Keys.Where(k => k.StartsWith(environmentUrl, StringComparison.OrdinalIgnoreCase)).ToList();
-            foreach (var key in keysToRemove)
+            else
             {
-                TokenCache.TryRemove(key, out _);
+                string resourceUrl = environmentUrl.TrimEnd('/');
+                var keysToRemove = TokenCache.Keys.Where(k => k.StartsWith(resourceUrl, StringComparison.OrdinalIgnoreCase)).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    TokenCache.TryRemove(key, out _);
+                }
             }
         }
     }
