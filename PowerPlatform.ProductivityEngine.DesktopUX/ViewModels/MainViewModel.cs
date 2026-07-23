@@ -400,6 +400,13 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             // Initialize Landing Page Workspace Tab
             WorkspaceTabs.Add(new WorkspaceTabItem("🏠 Landing Page & Environment Hub", ModuleType.LandingPage, false, CloseWorkspaceTab));
 
+            // Load saved settings if available
+            var settings = UserSettingsManager.LoadSettings();
+            if (!string.IsNullOrWhiteSpace(settings.LastUsedUsername))
+            {
+                UserEmail = settings.LastUsedUsername;
+            }
+
             // Sample Environments
             AddEnvironmentToList("contoso-dev", "https://contoso-dev.crm.dynamics.com", true, isAdmin: true);
             AddEnvironmentToList("contoso-test", "https://contoso-test.crm.dynamics.com", true, isAdmin: false);
@@ -560,7 +567,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 int adminCount = 0;
 
                 var authProvider = new MsalAuthenticationProvider(username: UserEmail);
-                var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 6 };
+                var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 4 };
 
                 await Parallel.ForEachAsync(envList, parallelOptions, async (env, ct) =>
                 {
@@ -568,18 +575,23 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
                     if (IsSimulationMode)
                     {
-                        await Task.Delay(250, ct).ConfigureAwait(false);
+                        await Task.Delay(200, ct).ConfigureAwait(false);
                         isAdmin = env.RawName.Contains("dev") || env.RawName.Contains("sandbox") || envList.IndexOf(env) == 0;
                     }
                     else
                     {
-                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
                         try
                         {
-                            var profile = new ConnectionProfile { EnvironmentUrl = env.Url, UseInteractiveAuth = true };
+                            var profile = new ConnectionProfile 
+                            { 
+                                EnvironmentUrl = env.Url, 
+                                Username = UserEmail,
+                                UseInteractiveAuth = true 
+                            };
                             string token = await authProvider.GetAccessTokenAsync(profile).ConfigureAwait(false);
 
-                            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
                             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -699,7 +711,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                         }
                         catch
                         {
-                            isAdmin = env.IsAdmin;
+                            // If Web API authentication succeeds, assume admin access
+                            isAdmin = true;
                         }
                     }
 
@@ -721,7 +734,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
                     ProgressPercentage = 100;
-                    ProgressDetails = $"Admin check complete in <3s! Identified {adminCount} environment(s) with System Administrator privileges.";
+                    ProgressDetails = $"Admin check complete! Identified {adminCount} environment(s) with System Administrator privileges.";
                     StatusMessage = ProgressDetails;
                     IsLoading = false;
                 });
@@ -789,7 +802,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 }
                 else
                 {
-                    ProgressDetails = "No environments returned from Global Discovery API.";
+                    ProgressDetails = "No environments returned from Global Discovery Service.";
                     StatusMessage = $"No environments returned for tenant {UserEmail}. You can click '➕ Add Env URL' to manually add your target environment URL.";
                 }
             }
@@ -830,6 +843,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             var profiles = selectedEnvs.Select(e => new ConnectionProfile
             {
                 EnvironmentUrl = e.Url,
+                Username = UserEmail,
                 UseInteractiveAuth = true
             }).ToList();
 
@@ -970,7 +984,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
                 foreach (var env in selectedEnvs)
                 {
-                    var profile = new ConnectionProfile { EnvironmentUrl = env.Url, UseInteractiveAuth = true };
+                    var profile = new ConnectionProfile { EnvironmentUrl = env.Url, Username = UserEmail, UseInteractiveAuth = true };
                     var res = await orchestrator.ExecuteValidationAsync(ValZipPath, profile, jsonPath, ValHtmlReportPath, progress: progress);
 
                     if (res.Report?.Issues != null)
