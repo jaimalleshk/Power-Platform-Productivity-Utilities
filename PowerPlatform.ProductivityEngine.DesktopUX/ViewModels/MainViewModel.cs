@@ -1027,7 +1027,10 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 ? $"Exploring single environment ({selectedEnvs[0].DisplayName})..." 
                 : $"Comparing {selectedEnvs.Count} environments via D365 Web API / OAuth...";
 
-            UnifiedSolutionExplorerTree.Clear();
+            if (UnifiedSolutionExplorerTree.Count == 0)
+            {
+                InitializeDefaultSolutionExplorerTree();
+            }
 
             var profiles = selectedEnvs.Select(e => new ConnectionProfile
             {
@@ -1113,6 +1116,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
                     Application.Current?.Dispatcher.Invoke(() =>
                     {
+                        UnifiedSolutionExplorerTree.Clear();
                         UnifiedSolutionExplorerTree.Add(root1Folder);
                         UnifiedSolutionExplorerTree.Add(root2Folder);
 
