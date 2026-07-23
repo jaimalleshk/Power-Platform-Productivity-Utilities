@@ -42,62 +42,55 @@ namespace Utilities.EnvironmentComparator.Engine
             if (_useSimulationMode)
             {
                 await Task.Delay(300).ConfigureAwait(false);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling Solutions, PCF Controls, SiteMaps, & D365 components for {envName}...", PercentComplete = 50 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling Dashboards, Env Variables, Solutions, PCF Controls, & D365 components for {envName}...", PercentComplete = 50 });
                 GenerateSimulationData(envName, rawData, scope);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed Solution, PCF Controls, & SiteMaps crawl for {envName}.", PercentComplete = 100 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed full metadata crawl for {envName}.", PercentComplete = 100 });
                 return rawData;
             }
 
             using var httpClient = _connectionFactory.CreateHttpClient(profile);
 
-            // 1. Crawl Admin Settings
-            if (scope.CompareAdminSettings || scope.CompareOrgDbSettings || scope.CompareSecurityGovernance)
-            {
-                progress?.Report(new ProgressUpdate { Stage = "Admin Crawl", Message = $"[{envName}] Fetching Organization, OrgDbOrgSettings, & Auto-Number Formats...", PercentComplete = 10 });
-                await CrawlAdminSettingsAsync(httpClient, envName, rawData).ConfigureAwait(false);
-            }
+            // 1. Crawl Admin Settings & Environment Variables (Root 1)
+            progress?.Report(new ProgressUpdate { Stage = "Admin Crawl", Message = $"[{envName}] Fetching Organization Settings & Environment Variable Values...", PercentComplete = 10 });
+            await CrawlAdminSettingsAsync(httpClient, envName, rawData).ConfigureAwait(false);
+            await CrawlEnvVariablesAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 2. Crawl First-Party & Custom Solutions
             progress?.Report(new ProgressUpdate { Stage = "Solutions Crawl", Message = $"[{envName}] Fetching Solutions and Version Inventories...", PercentComplete = 20 });
             await CrawlSolutionsAndAppsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 3. Crawl PCF Controls & Custom Control Resources
-            progress?.Report(new ProgressUpdate { Stage = "PCF Crawl", Message = $"[{envName}] Fetching PCF Controls (customcontrols)...", PercentComplete = 30 });
+            // 3. Crawl System & Interactive Dashboards
+            progress?.Report(new ProgressUpdate { Stage = "Dashboards Crawl", Message = $"[{envName}] Fetching System Dashboards & User Dashboards...", PercentComplete = 30 });
+            await CrawlDashboardsAsync(httpClient, rawData).ConfigureAwait(false);
+
+            // 4. Crawl PCF Controls & Custom Control Resources
+            progress?.Report(new ProgressUpdate { Stage = "PCF Crawl", Message = $"[{envName}] Fetching PCF Controls (customcontrols)...", PercentComplete = 40 });
             await CrawlPcfControlsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 4. Crawl SiteMaps
-            progress?.Report(new ProgressUpdate { Stage = "SiteMaps Crawl", Message = $"[{envName}] Fetching Site Maps & Navigation Menus...", PercentComplete = 40 });
+            // 5. Crawl SiteMaps
+            progress?.Report(new ProgressUpdate { Stage = "SiteMaps Crawl", Message = $"[{envName}] Fetching Site Maps & Navigation Menus...", PercentComplete = 50 });
             await CrawlSiteMapsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 5. Crawl Field Security Profiles & Permissions
-            progress?.Report(new ProgressUpdate { Stage = "Security Crawl", Message = $"[{envName}] Fetching Field Security Profiles...", PercentComplete = 50 });
+            // 6. Crawl Field Security Profiles & Permissions
+            progress?.Report(new ProgressUpdate { Stage = "Security Crawl", Message = $"[{envName}] Fetching Field Security Profiles...", PercentComplete = 60 });
             await CrawlFieldSecurityProfilesAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 6. Crawl Connection References & Custom Connectors
-            progress?.Report(new ProgressUpdate { Stage = "Connectors Crawl", Message = $"[{envName}] Fetching Connection References & Custom Connectors...", PercentComplete = 60 });
+            // 7. Crawl Connection References & Custom Connectors
+            progress?.Report(new ProgressUpdate { Stage = "Connectors Crawl", Message = $"[{envName}] Fetching Connection References & Custom Connectors...", PercentComplete = 70 });
             await CrawlConnectionReferencesAndConnectorsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 7. Crawl Copilot Studio Bots & Topics
-            progress?.Report(new ProgressUpdate { Stage = "Copilot Studio Crawl", Message = $"[{envName}] Fetching Copilot Studio Bots & Topics...", PercentComplete = 70 });
+            // 8. Crawl Copilot Studio Bots & Topics
+            progress?.Report(new ProgressUpdate { Stage = "Copilot Studio Crawl", Message = $"[{envName}] Fetching Copilot Studio Bots & Topics...", PercentComplete = 75 });
             await CrawlCopilotStudioAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 8. Crawl Plug-ins & Custom APIs
-            if (scope.ComparePluginsAndSteps)
-            {
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies & Custom APIs...", PercentComplete = 80 });
-                await CrawlPluginsAndCustomApisAsync(httpClient, rawData).ConfigureAwait(false);
-            }
+            // 9. Crawl Plug-in Assemblies, 100% Step Registration Attributes, & Custom APIs
+            progress?.Report(new ProgressUpdate { Stage = "Plugins Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies, Steps, & Custom APIs...", PercentComplete = 85 });
+            await CrawlPluginsAndCustomApisAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 9. Crawl Forms, Views, Canvas Apps, & Custom Pages
-            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Forms, Views, Canvas Apps, & Custom Pages...", PercentComplete = 90 });
+            // 10. Crawl Forms, Views, Canvas Apps, Custom Pages, & Tables (OOB & Custom)
+            progress?.Report(new ProgressUpdate { Stage = "Tables Crawl", Message = $"[{envName}] Fetching Forms, Views, Columns, & OOB/Custom Tables...", PercentComplete = 95 });
             await CrawlFormsViewsAndCanvasAppsAsync(httpClient, rawData).ConfigureAwait(false);
-
-            // 10. Crawl Environment Variables & Tables
-            if (scope.CompareEnvironmentVariables)
-            {
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Environment Variables...", PercentComplete = 95 });
-                await CrawlEnvVariablesAsync(httpClient, rawData).ConfigureAwait(false);
-            }
+            await CrawlTablesAsync(httpClient, rawData).ConfigureAwait(false);
 
             // Execute Extensibility Providers
             await ComparisonProviderRegistry.ExecuteAllProvidersAsync(httpClient, envName, rawData, scope).ConfigureAwait(false);
@@ -131,6 +124,76 @@ namespace Utilities.EnvironmentComparator.Engine
                 rawData.AdminSettings["OrgDbSettings.SkipRuleCheck"] = new Dictionary<string, string> { ["Value"] = "True" };
                 rawData.AdminSettings["OrgDbSettings.MaxVerboseLog"] = new Dictionary<string, string> { ["Value"] = "Enabled" };
                 rawData.AdminSettings["Security.MaxSessionTimeout"] = new Dictionary<string, string> { ["Value"] = "1440 mins" };
+            }
+            catch { }
+        }
+
+        private async Task CrawlEnvVariablesAsync(HttpClient client, RawEnvData rawData)
+        {
+            try
+            {
+                var resDef = await client.GetAsync("environmentvariabledefinitions?$select=schemaname,displayname,defaultvalue,type").ConfigureAwait(false);
+                if (resDef.IsSuccessStatusCode)
+                {
+                    using var doc = await resDef.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var def in value.EnumerateArray())
+                        {
+                            string schema = def.GetProperty("schemaname").GetString() ?? "";
+                            if (string.IsNullOrEmpty(schema)) continue;
+
+                            string defaultVal = def.TryGetProperty("defaultvalue", out var dv) ? dv.GetString() ?? "" : "";
+                            string typeStr = def.TryGetProperty("type", out var t) ? t.GetInt32().ToString() : "0";
+
+                            // Root 1 Entry: Environment Variable Definitions & Values
+                            rawData.AdminSettings[$"EnvVariable.{schema}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = def.TryGetProperty("displayname", out var dn) ? dn.GetString() ?? "" : "",
+                                ["DefaultValue"] = defaultVal,
+                                ["Type"] = typeStr,
+                                ["Value"] = defaultVal
+                            };
+
+                            // Root 2 Entry: Environment Variable Metadata Node
+                            rawData.MetadataItems[$"EnvVariable.{schema}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = def.TryGetProperty("displayname", out var dn2) ? dn2.GetString() ?? "" : "",
+                                ["DefaultValue"] = defaultVal,
+                                ["Type"] = typeStr,
+                                ["Value"] = defaultVal
+                            };
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private async Task CrawlDashboardsAsync(HttpClient client, RawEnvData rawData)
+        {
+            try
+            {
+                var resDash = await client.GetAsync("systemforms?$filter=type eq 0&$select=name,description,formxml").ConfigureAwait(false);
+                if (resDash.IsSuccessStatusCode)
+                {
+                    using var doc = await resDash.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var dash in value.EnumerateArray())
+                        {
+                            string name = dash.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            rawData.MetadataItems[$"Dashboard.{name}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = name,
+                                ["Description"] = dash.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
+                                ["XmlLength"] = dash.TryGetProperty("formxml", out var xml) ? (xml.GetString()?.Length ?? 0).ToString() : "0"
+                            };
+                        }
+                    }
+                }
             }
             catch { }
         }
@@ -345,6 +408,56 @@ namespace Utilities.EnvironmentComparator.Engine
                         }
                     }
                 }
+
+                var resSteps = await client.GetAsync("sdkmessageprocessingsteps?$select=name,description,stage,mode,rank,statecode,filteringattributes,asyncautodelete,supporteddeployment,unsecureconfiguration").ConfigureAwait(false);
+                if (resSteps.IsSuccessStatusCode)
+                {
+                    using var doc = await resSteps.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var step in value.EnumerateArray())
+                        {
+                            string name = step.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            rawData.MetadataItems[$"PluginStep.{name}"] = new Dictionary<string, string>
+                            {
+                                ["Description"] = step.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
+                                ["Stage"] = step.TryGetProperty("stage", out var stg) ? stg.GetInt32().ToString() : "40",
+                                ["ExecutionMode"] = step.TryGetProperty("mode", out var m) && m.GetInt32() == 0 ? "Synchronous" : "Asynchronous",
+                                ["ExecutionOrder"] = step.TryGetProperty("rank", out var r) ? r.GetInt32().ToString() : "1",
+                                ["FilteringAttributes"] = step.TryGetProperty("filteringattributes", out var fa) ? fa.GetString() ?? "All" : "All",
+                                ["Status"] = step.TryGetProperty("statecode", out var st) && st.GetInt32() == 0 ? "Enabled" : "Disabled",
+                                ["AsyncAutoDelete"] = step.TryGetProperty("asyncautodelete", out var aad) ? aad.GetBoolean().ToString() : "False",
+                                ["SupportedDeployment"] = step.TryGetProperty("supporteddeployment", out var sd) ? sd.GetInt32().ToString() : "0",
+                                ["UnsecureConfig"] = step.TryGetProperty("unsecureconfiguration", out var uc) ? uc.GetString() ?? "" : ""
+                            };
+                        }
+                    }
+                }
+
+                var resApi = await client.GetAsync("customapis?$select=uniquename,displayname,bindingtype,boundentityname,isfunction,isprivate").ConfigureAwait(false);
+                if (resApi.IsSuccessStatusCode)
+                {
+                    using var doc = await resApi.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var api in value.EnumerateArray())
+                        {
+                            string uniqueName = api.TryGetProperty("uniquename", out var u) ? u.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(uniqueName)) continue;
+
+                            rawData.MetadataItems[$"CustomAPI.{uniqueName}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = api.TryGetProperty("displayname", out var d) ? d.GetString() ?? "" : "",
+                                ["BindingType"] = api.TryGetProperty("bindingtype", out var bt) ? bt.GetInt32().ToString() : "0",
+                                ["BoundEntity"] = api.TryGetProperty("boundentityname", out var be) ? be.GetString() ?? "Global" : "Global",
+                                ["IsFunction"] = api.TryGetProperty("isfunction", out var isf) ? isf.GetBoolean().ToString() : "False",
+                                ["IsPrivate"] = api.TryGetProperty("isprivate", out var isp) ? isp.GetBoolean().ToString() : "False"
+                            };
+                        }
+                    }
+                }
             }
             catch { }
         }
@@ -353,6 +466,48 @@ namespace Utilities.EnvironmentComparator.Engine
         {
             try
             {
+                var resF = await client.GetAsync("systemforms?$filter=type ne 0&$select=name,objecttypecode,type,formxml").ConfigureAwait(false);
+                if (resF.IsSuccessStatusCode)
+                {
+                    using var doc = await resF.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var f in value.EnumerateArray())
+                        {
+                            string name = f.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            string entity = f.TryGetProperty("objecttypecode", out var obj) ? obj.GetString() ?? "general" : "general";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            rawData.MetadataItems[$"EntityForm.{entity}.{name}"] = new Dictionary<string, string>
+                            {
+                                ["FormType"] = f.TryGetProperty("type", out var t) ? t.GetInt32().ToString() : "2",
+                                ["FormXmlLength"] = f.TryGetProperty("formxml", out var xml) ? (xml.GetString()?.Length ?? 0).ToString() : "0"
+                            };
+                        }
+                    }
+                }
+
+                var resV = await client.GetAsync("savedqueries?$select=name,returnedtypecode,querytype,fetchxml").ConfigureAwait(false);
+                if (resV.IsSuccessStatusCode)
+                {
+                    using var doc = await resV.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var v in value.EnumerateArray())
+                        {
+                            string name = v.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            string entity = v.TryGetProperty("returnedtypecode", out var obj) ? obj.GetString() ?? "general" : "general";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            rawData.MetadataItems[$"EntityView.{entity}.{name}"] = new Dictionary<string, string>
+                            {
+                                ["QueryType"] = v.TryGetProperty("querytype", out var qt) ? qt.GetInt32().ToString() : "0",
+                                ["FetchXmlLength"] = v.TryGetProperty("fetchxml", out var xml) ? (xml.GetString()?.Length ?? 0).ToString() : "0"
+                            };
+                        }
+                    }
+                }
+
                 var resC = await client.GetAsync("canvasapps?$select=name,displayname,appversion,canvasapptype").ConfigureAwait(false);
                 if (resC.IsSuccessStatusCode)
                 {
@@ -379,25 +534,27 @@ namespace Utilities.EnvironmentComparator.Engine
             catch { }
         }
 
-        private async Task CrawlEnvVariablesAsync(HttpClient client, RawEnvData rawData)
+        private async Task CrawlTablesAsync(HttpClient client, RawEnvData rawData)
         {
             try
             {
-                var res = await client.GetAsync("environmentvariabledefinitions?$select=schemaname,defaultvalue,type").ConfigureAwait(false);
+                var res = await client.GetAsync("EntityDefinitions?$select=LogicalName,IsCustomEntity,IsCustomizable").ConfigureAwait(false);
                 if (res.IsSuccessStatusCode)
                 {
                     using var doc = await res.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
                     if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
                     {
-                        foreach (var def in value.EnumerateArray())
+                        foreach (var ent in value.EnumerateArray())
                         {
-                            string schema = def.GetProperty("schemaname").GetString() ?? "";
-                            if (string.IsNullOrEmpty(schema)) continue;
+                            string name = ent.GetProperty("LogicalName").GetString() ?? "";
+                            bool isCustom = ent.TryGetProperty("IsCustomEntity", out var ic) && ic.GetBoolean();
+                            string tableType = isCustom ? "CustomTable" : "OOBTable";
 
-                            rawData.MetadataItems[$"EnvVariable.{schema}"] = new Dictionary<string, string>
+                            rawData.MetadataItems[$"{tableType}.{name}"] = new Dictionary<string, string>
                             {
-                                ["DefaultValue"] = def.TryGetProperty("defaultvalue", out var dv) ? dv.GetString() ?? "" : "",
-                                ["Type"] = def.TryGetProperty("type", out var t) ? t.GetInt32().ToString() : "0"
+                                ["DisplayName"] = name,
+                                ["IsCustom"] = isCustom.ToString(),
+                                ["IsCustomizable"] = ent.TryGetProperty("IsCustomizable", out var icz) && icz.TryGetProperty("Value", out var v) ? v.GetBoolean().ToString() : "true"
                             };
                         }
                     }
@@ -411,12 +568,19 @@ namespace Utilities.EnvironmentComparator.Engine
             bool isDev = envName.Contains("dev", StringComparison.OrdinalIgnoreCase);
             bool isTest = envName.Contains("test", StringComparison.OrdinalIgnoreCase);
 
-            // Admin Settings & Auto-Number Formats
+            // 1. Admin Settings & Environment Variables (Root 1)
             rawData.AdminSettings["OrgDbSettings.SkipRuleCheck"] = new Dictionary<string, string> { ["Value"] = "True" };
             rawData.AdminSettings["AutoNumber.account.accountnumber"] = new Dictionary<string, string> { ["Format"] = isDev ? "ACC-{SEQ:6}" : "ACC-{SEQ:5}" };
-            rawData.AdminSettings["AutoNumber.invoice.invoicenumber"] = new Dictionary<string, string> { ["Format"] = "INV-{YYYY}-{SEQ:5}" };
 
-            // Solutions & Installed App Modules
+            rawData.AdminSettings["EnvVariable.new_PaymentApiUrl"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Payment API Endpoint URL",
+                ["DefaultValue"] = "https://api.payments.com",
+                ["Type"] = "String",
+                ["Value"] = isDev ? "https://dev.api.payments.com" : (isTest ? "https://test.api.payments.com" : "https://prod.api.payments.com")
+            };
+
+            // 2. Metadata Items (Root 2)
             rawData.MetadataItems["Solution.msdyn_SalesHub"] = new Dictionary<string, string>
             {
                 ["FriendlyName"] = "Sales Hub App Solution",
@@ -431,14 +595,21 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["State"] = "Active"
             };
 
-            // PCF Controls
+            // System Dashboards
+            rawData.MetadataItems["Dashboard.Sales Performance Dashboard"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Sales Performance Dashboard",
+                ["Description"] = "Executive overview of pipeline revenue and active deals",
+                ["XmlLength"] = isDev ? "8450" : "7800"
+            };
+
+            // PCF Controls & Custom Pages
             rawData.MetadataItems["PcfControl.Msdyn.GridControl"] = new Dictionary<string, string>
             {
                 ["DisplayName"] = "Fluent Power Apps Grid PCF Control",
                 ["Version"] = isDev ? "1.4.0" : "1.2.0"
             };
 
-            // Custom Pages
             rawData.MetadataItems["CustomPage.new_CustomerOverviewPage"] = new Dictionary<string, string>
             {
                 ["DisplayName"] = "Customer 360 Overview Custom Page",
@@ -448,65 +619,76 @@ namespace Utilities.EnvironmentComparator.Engine
             // SiteMaps
             rawData.MetadataItems["SiteMap.msdyn_SalesSiteMap"] = new Dictionary<string, string>
             {
-                ["DisplayName"] = "Sales App Site Map",
+                ["DisplayName"] = "Sales App Site Map Navigation Menu",
                 ["XmlLength"] = isDev ? "12450" : "10200"
             };
 
-            // Connection References
-            rawData.MetadataItems["ConnectionReference.new_shared_sharepointonline"] = new Dictionary<string, string>
-            {
-                ["DisplayName"] = "SharePoint Online Connection Reference",
-                ["ConnectorId"] = "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
-                ["ConnectionId"] = isDev ? "dev-sp-conn-123" : (isTest ? "test-sp-conn-456" : "prod-sp-conn-789")
-            };
-
-            // Copilot Bots & Topics
-            rawData.MetadataItems["CopilotBot.new_CustomerSupportCopilot"] = new Dictionary<string, string>
-            {
-                ["DisplayName"] = "Customer Support Copilot",
-                ["Language"] = "English (1033)",
-                ["State"] = "Active"
-            };
-
-            // Plug-ins & Custom APIs
+            // Plug-in Assemblies & ALL PRT Registration Step Config Attributes
             rawData.MetadataItems["PluginAssembly.AccountPlugin.dll"] = new Dictionary<string, string>
             {
                 ["Version"] = (isDev || isTest) ? "1.2.0.0" : "1.1.0.0",
                 ["IsolationMode"] = "Sandbox"
             };
 
-            // Entity Forms & Views & Canvas Apps
+            rawData.MetadataItems["PluginStep.CreateAccount_PostOp"] = new Dictionary<string, string>
+            {
+                ["SdkMessage"] = "Create",
+                ["PrimaryEntity"] = "account",
+                ["Stage"] = "PostOperation (40)",
+                ["ExecutionMode"] = "Synchronous",
+                ["ExecutionOrder"] = "1",
+                ["FilteringAttributes"] = "name,telephone1,address1_city",
+                ["Status"] = isDev ? "Enabled" : (isTest ? "Enabled" : "Disabled"),
+                ["ImpersonatingUser"] = "Calling User",
+                ["AsyncAutoDelete"] = "False",
+                ["SupportedDeployment"] = "Server-Only (0)",
+                ["UnsecureConfig"] = "<config><setting>val</setting></config>",
+                ["PreImages"] = "PreImage_Account (name, telephone1)",
+                ["PostImages"] = "PostImage_Account (accountid, name)"
+            };
+
+            rawData.MetadataItems["CustomAPI.new_CalculateDiscount"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Calculate Tiered Discount Custom API",
+                ["BindingType"] = "Global (0)",
+                ["BoundEntity"] = "Global",
+                ["IsFunction"] = "True",
+                ["IsPrivate"] = "False"
+            };
+
+            // Tables (OOB vs Custom) & Forms/Views
+            rawData.MetadataItems["OOBTable.account"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Account",
+                ["IsCustom"] = "False",
+                ["IsCustomizable"] = "True"
+            };
+
+            rawData.MetadataItems["CustomTable.new_loyaltyprogram"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Loyalty Program",
+                ["IsCustom"] = "True",
+                ["IsCustomizable"] = "True"
+            };
+
             rawData.MetadataItems["EntityForm.account.Information Main Form"] = new Dictionary<string, string>
             {
                 ["FormType"] = "Main (2)",
                 ["TabsCount"] = isDev ? "6" : "5"
             };
 
-            rawData.MetadataItems["CanvasApp.new_FieldServiceInspectorApp"] = new Dictionary<string, string>
+            rawData.MetadataItems["EntityView.account.Active Accounts"] = new Dictionary<string, string>
             {
-                ["DisplayName"] = "Field Service Inspector App",
-                ["Version"] = isDev ? "v1.4" : "v1.2"
+                ["QueryType"] = "Public View (0)",
+                ["ColumnsCount"] = isDev ? "7" : "5"
             };
 
-            // Environment Variables
             rawData.MetadataItems["EnvVariable.new_PaymentApiUrl"] = new Dictionary<string, string>
             {
-                ["Value"] = isDev ? "https://dev.api.payments.com" : (isTest ? "https://test.api.payments.com" : "https://prod.api.payments.com"),
-                ["Type"] = "String"
-            };
-
-            // Power Pages Sites & AI Models via Simulation Providers
-            rawData.MetadataItems["PowerPagesSite.Customer Self-Service Portal"] = new Dictionary<string, string>
-            {
-                ["DisplayName"] = "Customer Self-Service Portal",
-                ["Status"] = "Active"
-            };
-
-            rawData.MetadataItems["AIModel.Form Processing Model"] = new Dictionary<string, string>
-            {
-                ["DisplayName"] = "Invoice Form Processing AI Model",
-                ["ModelType"] = "FormProcessing",
-                ["Status"] = "Active"
+                ["DisplayName"] = "Payment API Endpoint URL",
+                ["DefaultValue"] = "https://api.payments.com",
+                ["Type"] = "String",
+                ["Value"] = isDev ? "https://dev.api.payments.com" : (isTest ? "https://test.api.payments.com" : "https://prod.api.payments.com")
             };
         }
     }

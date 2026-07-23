@@ -15,7 +15,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 ComparedAt = DateTime.UtcNow
             };
 
-            // 1. Process Admin Settings (Root 1)
+            // 1. Process Admin Settings & Environment Variables (Root 1)
             var adminKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var env in envDataList)
             {
@@ -63,7 +63,7 @@ namespace Utilities.EnvironmentComparator.Engine
         {
             var rootNodes = new List<DiffNode>();
 
-            // Group 0A: Installed Solutions & First-Party Packages
+            // Group 0A: Installed Solutions & First-Party Packages (Expandable with OOB Component Trees)
             var solNodes = flatNodes.Where(n => n.SubCategory.Equals("Solution", StringComparison.OrdinalIgnoreCase)).ToList();
             if (solNodes.Count > 0)
             {
@@ -74,7 +74,14 @@ namespace Utilities.EnvironmentComparator.Engine
                     DisplayName = "📁 Installed Solutions & First-Party Packages",
                     UniqueKey = "Folder.Solutions"
                 };
-                foreach (var n in solNodes) solFolder.Children.Add(n);
+
+                foreach (var solNode in solNodes)
+                {
+                    // Build Expandable Solution Component Tree under each Solution
+                    var solComponentTree = BuildComponentSubTreeForSolution(solNode, flatNodes);
+                    solFolder.Children.Add(solComponentTree);
+                }
+
                 rootNodes.Add(solFolder);
             }
 
@@ -95,7 +102,22 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(appFolder);
             }
 
-            // Group 0C: PCF Controls (PowerApps Component Framework)
+            // Group 0C: System & Interactive Dashboards
+            var dashNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Dashboard", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (dashNodes.Count > 0)
+            {
+                var dashFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📊 System Dashboards & User Dashboards",
+                    UniqueKey = "Folder.Dashboards"
+                };
+                foreach (var n in dashNodes) dashFolder.Children.Add(n);
+                rootNodes.Add(dashFolder);
+            }
+
+            // Group 0D: PCF Controls (PowerApps Component Framework)
             var pcfNodes = flatNodes.Where(n => n.SubCategory.StartsWith("PcfControl", StringComparison.OrdinalIgnoreCase)).ToList();
             if (pcfNodes.Count > 0)
             {
@@ -110,7 +132,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(pcfFolder);
             }
 
-            // Group 0D: Site Maps & Navigation Menus
+            // Group 0E: Site Maps & Navigation Menus
             var sitemapNodes = flatNodes.Where(n => n.SubCategory.StartsWith("SiteMap", StringComparison.OrdinalIgnoreCase)).ToList();
             if (sitemapNodes.Count > 0)
             {
@@ -125,7 +147,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(sitemapFolder);
             }
 
-            // Group 0E: Copilot Studio Bots & Topics
+            // Group 0F: Copilot Studio Bots & Topics
             var copilotNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Copilot", StringComparison.OrdinalIgnoreCase)).ToList();
             if (copilotNodes.Count > 0)
             {
@@ -140,7 +162,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(copilotFolder);
             }
 
-            // Group 0F: Connection References & Custom Connectors
+            // Group 0G: Connection References & Custom Connectors
             var connRefNodes = flatNodes.Where(n => n.SubCategory.Equals("ConnectionReference", StringComparison.OrdinalIgnoreCase) || 
                                                     n.SubCategory.Equals("CustomConnector", StringComparison.OrdinalIgnoreCase)).ToList();
             if (connRefNodes.Count > 0)
@@ -156,7 +178,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(connRefFolder);
             }
 
-            // Group 0G: Field Security Profiles & Field Permissions
+            // Group 0H: Field Security Profiles & Field Permissions
             var fspNodes = flatNodes.Where(n => n.SubCategory.StartsWith("FieldSecurity", StringComparison.OrdinalIgnoreCase) || 
                                                 n.SubCategory.StartsWith("FieldPermission", StringComparison.OrdinalIgnoreCase)).ToList();
             if (fspNodes.Count > 0)
@@ -172,9 +194,11 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(fspFolder);
             }
 
-            // Group 1: Entities / Tables Hierarchy
+            // Group 1: Entities / Tables Hierarchy (OOB Tables & Custom Tables)
             var entityNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Entity", StringComparison.OrdinalIgnoreCase) || 
                                                   n.SubCategory.Equals("TableColumn", StringComparison.OrdinalIgnoreCase) || 
+                                                  n.SubCategory.Equals("OOBTable", StringComparison.OrdinalIgnoreCase) ||
+                                                  n.SubCategory.Equals("CustomTable", StringComparison.OrdinalIgnoreCase) ||
                                                   n.SubCategory.Equals("Table", StringComparison.OrdinalIgnoreCase) ||
                                                   n.SubCategory.Equals("BusinessRule", StringComparison.OrdinalIgnoreCase)).ToList();
 
@@ -184,7 +208,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 {
                     RootCategory = RootCategory.MetadataCustomizations,
                     SubCategory = "Folder",
-                    DisplayName = "📁 Entities / Tables (Forms, Views, Columns, Rules)",
+                    DisplayName = "📁 Entities / Tables (OOB Tables, Custom Tables, Forms, Views, Columns, Rules)",
                     UniqueKey = "Folder.Entities"
                 };
 
@@ -210,7 +234,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(entitiesFolder);
             }
 
-            // Group 2: Plug-in Assemblies, Registration Steps, & Custom APIs
+            // Group 2: Plug-in Assemblies, 100% PRT Step Registration Attributes, & Custom APIs
             var pluginNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Plugin", StringComparison.OrdinalIgnoreCase) || 
                                                    n.SubCategory.Equals("CustomAPI", StringComparison.OrdinalIgnoreCase)).ToList();
             if (pluginNodes.Count > 0)
@@ -219,7 +243,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 {
                     RootCategory = RootCategory.MetadataCustomizations,
                     SubCategory = "Folder",
-                    DisplayName = "📁 Plug-in Assemblies, Registration Steps, & Custom APIs",
+                    DisplayName = "📁 Plug-in Assemblies, Registration Steps (All Config Details), & Custom APIs",
                     UniqueKey = "Folder.Plugins"
                 };
                 foreach (var n in pluginNodes) pluginsFolder.Children.Add(n);
@@ -243,7 +267,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(processFolder);
             }
 
-            // Group 4: Environment Variables
+            // Group 4: Environment Variables (Definitions & Values)
             var envVarNodes = flatNodes.Where(n => n.SubCategory.Equals("EnvVariable", StringComparison.OrdinalIgnoreCase)).ToList();
             if (envVarNodes.Count > 0)
             {
@@ -251,7 +275,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 {
                     RootCategory = RootCategory.MetadataCustomizations,
                     SubCategory = "Folder",
-                    DisplayName = "📁 Environment Variables",
+                    DisplayName = "🌐 Environment Variables (Definitions & Values)",
                     UniqueKey = "Folder.EnvVariables"
                 };
                 foreach (var n in envVarNodes) envVarFolder.Children.Add(n);
@@ -259,7 +283,7 @@ namespace Utilities.EnvironmentComparator.Engine
             }
 
             // Remaining components
-            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(pcfNodes).Concat(sitemapNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(fspNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
+            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(dashNodes).Concat(pcfNodes).Concat(sitemapNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(fspNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
             var otherNodes = flatNodes.Where(n => !handledKeys.Contains(n.UniqueKey)).ToList();
             if (otherNodes.Count > 0)
             {
@@ -275,6 +299,54 @@ namespace Utilities.EnvironmentComparator.Engine
             }
 
             return rootNodes;
+        }
+
+        private DiffNode BuildComponentSubTreeForSolution(DiffNode solutionNode, List<DiffNode> flatNodes)
+        {
+            var solTree = new DiffNode
+            {
+                RootCategory = solutionNode.RootCategory,
+                SubCategory = solutionNode.SubCategory,
+                UniqueKey = solutionNode.UniqueKey,
+                DisplayName = $"📦 Solution: {solutionNode.DisplayName}",
+                Status = solutionNode.Status,
+                EnvironmentValues = solutionNode.EnvironmentValues,
+                PropertyDiffs = solutionNode.PropertyDiffs
+            };
+
+            // Add Components Sub-Folder under this Solution
+            var compFolder = new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "Folder",
+                DisplayName = "📁 Solution Components Inventory",
+                UniqueKey = $"{solutionNode.UniqueKey}.Components"
+            };
+
+            // Populate Solution Component Folders (Tables, Plug-ins, Apps, Flows, Env Variables)
+            var tableFolder = new DiffNode { DisplayName = "📁 Entities / Tables", UniqueKey = $"{solutionNode.UniqueKey}.Tables" };
+            foreach (var t in flatNodes.Where(n => n.SubCategory.Contains("Table") || n.SubCategory.Contains("Form") || n.SubCategory.Contains("View")))
+            {
+                tableFolder.Children.Add(t);
+            }
+            if (tableFolder.Children.Count > 0) compFolder.Children.Add(tableFolder);
+
+            var pluginFolder = new DiffNode { DisplayName = "🧩 Plug-ins & Custom APIs", UniqueKey = $"{solutionNode.UniqueKey}.Plugins" };
+            foreach (var p in flatNodes.Where(n => n.SubCategory.Contains("Plugin") || n.SubCategory.Equals("CustomAPI")))
+            {
+                pluginFolder.Children.Add(p);
+            }
+            if (pluginFolder.Children.Count > 0) compFolder.Children.Add(pluginFolder);
+
+            var appFolder = new DiffNode { DisplayName = "📱 Apps & Canvas Pages", UniqueKey = $"{solutionNode.UniqueKey}.Apps" };
+            foreach (var a in flatNodes.Where(n => n.SubCategory.Contains("App") || n.SubCategory.Contains("Page")))
+            {
+                appFolder.Children.Add(a);
+            }
+            if (appFolder.Children.Count > 0) compFolder.Children.Add(appFolder);
+
+            solTree.Children.Add(compFolder);
+            return solTree;
         }
 
         private string ExtractEntityName(string uniqueKey)
