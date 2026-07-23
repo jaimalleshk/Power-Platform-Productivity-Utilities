@@ -159,5 +159,18 @@ namespace Core.Resilience.Tests
             Assert.Contains("Contoso Prod", htmlDiff);
             Assert.Contains("rgba(34, 197, 94", htmlDiff); // Added Line Green Highlight
         }
+
+        [Fact]
+        public void ComparisonProviderRegistry_AutoRegistersCustomProviders()
+        {
+            // Act
+            var providers = ComparisonProviderRegistry.GetRegisteredProviders();
+
+            // Assert
+            Assert.NotNull(providers);
+            Assert.NotEmpty(providers);
+            Assert.Contains(providers, p => p.ProviderName == "PowerPagesSiteProvider");
+            Assert.Contains(providers, p => p.ProviderName == "AiModelsProvider");
+        }
     }
 }
