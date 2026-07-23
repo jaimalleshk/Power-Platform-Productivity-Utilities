@@ -90,7 +90,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 ? await AutoDiscoverTenantIdAsync(PreferredUsername ?? "").ConfigureAwait(false)
                 : TenantId;
 
-            progressCallback?.Invoke($"Acquiring OAuth Token for tenant ({effectiveTenant})...");
+            progressCallback?.Invoke($"Checking saved token cache / acquiring OAuth Token for tenant ({effectiveTenant})...");
 
             string authority = $"https://login.microsoftonline.com/{(string.IsNullOrWhiteSpace(effectiveTenant) ? "organizations" : effectiveTenant)}";
 
@@ -98,6 +98,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 .WithAuthority(authority)
                 .WithRedirectUri("http://localhost")
                 .Build();
+
+            MsalTokenCacheHelper.EnableSerialization(pca.UserTokenCache);
 
             // Primary scope: .default
             string[] scopes = new[] { "https://globaldisco.crm.dynamics.com/.default" };
@@ -116,6 +118,11 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
             string token = authResult.AccessToken;
             SetSharedSsoToken(token, authResult.ExpiresOn);
+
+            if (!string.IsNullOrWhiteSpace(PreferredUsername))
+            {
+                UserSettingsManager.SaveUsername(PreferredUsername);
+            }
 
             progressCallback?.Invoke("Querying Dataverse Global Discovery Service endpoints (v2.0 & v9.2)...");
 
@@ -246,6 +253,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                         .WithRedirectUri("http://localhost")
                         .Build();
 
+                    MsalTokenCacheHelper.EnableSerialization(pca.UserTokenCache);
+
                     string[] primaryScope = new[] { $"{resourceUrl}/.default" };
                     try
                     {
@@ -275,6 +284,27 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
         private static async Task<AuthenticationResult> AcquireTokenWithFallbacksAsync(IPublicClientApplication pca, string[] scopes, string? username)
         {
+            // 0. SILENT TOKEN ACQUISITION (USES PERSISTENT ENCRYPTED TOKEN CACHE WITHOUT POPPING DIALOGS)
+            try
+            {
+                var accounts = await pca.GetAccountsAsync().ConfigureAwait(false);
+                IAccount? account = null;
+                if (!string.IsNullOrWhiteSpace(username))
+                {
+                    account = accounts.FirstOrDefault(a => a.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+                }
+                account ??= accounts.FirstOrDefault();
+
+                if (account != null)
+                {
+                    return await pca.AcquireTokenSilent(scopes, account).ExecuteAsync().ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // Fallthrough to interactive if silent token renewal fails
+            }
+
             // Attempt 1: Embedded WebView popup window
             try
             {
