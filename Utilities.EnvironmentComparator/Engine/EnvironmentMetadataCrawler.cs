@@ -41,7 +41,11 @@ namespace Utilities.EnvironmentComparator.Engine
             var rawData = new RawEnvData { EnvironmentName = envName };
             AppLogger.LogInfo("Comparator", $"[START CRAWL] Commencing environment metadata crawl for '{envName}' ({profile.EnvironmentUrl})...");
 
-            if (_useSimulationMode)
+            bool shouldSimulate = _useSimulationMode || 
+                                 string.IsNullOrWhiteSpace(profile.Username) || 
+                                 (profile.EnvironmentUrl != null && profile.EnvironmentUrl.Contains("contoso-"));
+
+            if (shouldSimulate)
             {
                 await Task.Delay(300).ConfigureAwait(false);
                 string msg1 = $"[SIMULATION] Crawling Default Solution, Active Unmanaged Layers, Solution Component Layers, & D365 components for {envName}...";
