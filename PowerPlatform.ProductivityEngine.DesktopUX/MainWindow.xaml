@@ -98,7 +98,24 @@
                                             </StackPanel>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                                 <TextBlock Text="Sort / Group: " Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"/>
-                                                <ComboBox ItemsSource="{Binding DataContext.SortOptions, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedSortOption, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,3" Margin="0,0,10,0" FontSize="11" Width="140"/>
+                                                
+                                                <!-- High Contrast Dark Styled ComboBox -->
+                                                <ComboBox ItemsSource="{Binding DataContext.SortOptions, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                          SelectedItem="{Binding DataContext.SelectedSortOption, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                          Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,3" Margin="0,0,10,0" FontSize="11" Width="155">
+                                                    <ComboBox.ItemContainerStyle>
+                                                        <Style TargetType="ComboBoxItem">
+                                                            <Setter Property="Background" Value="#1E293B"/>
+                                                            <Setter Property="Foreground" Value="#F8FAFC"/>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#0284C7"/>
+                                                                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ComboBox.ItemContainerStyle>
+                                                </ComboBox>
 
                                                 <Button Content="🛡️ Check if Admin" Command="{Binding DataContext.CheckAdminAccessCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#4338CA" Foreground="White" FontWeight="Bold" Padding="10,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0" ToolTip="Check System Administrator role access across tenant environments"/>
                                                 <Button Content="☑️ Select All" Command="{Binding DataContext.SelectAllEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="8,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>

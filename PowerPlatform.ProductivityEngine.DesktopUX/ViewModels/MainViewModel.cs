@@ -178,7 +178,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         // Environment Search, Filtering & Sorting State
         private string _envSearchText = string.Empty;
-        private string _selectedSortOption = "AdminFirst";
+        private string _selectedSortOption = "🛡️ Admin First";
 
         public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string>
         {
@@ -593,33 +593,39 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                                 {
                                     string userId = userIdProp.GetString() ?? "";
 
-                                    // 1. Check Direct User Roles (both systemuserroles and user_roles)
-                                    var userExpandRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})?$select=systemuserid&$expand=systemuserroles_association($select=name,roletemplateid),user_roles_association($select=name,roletemplateid)", cts.Token).ConfigureAwait(false);
-                                    if (userExpandRes.IsSuccessStatusCode)
+                                    // Endpoint 1: Direct Collection query
+                                    var directRolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/systemuserroles_association?$select=name,roletemplateid", cts.Token).ConfigureAwait(false);
+                                    if (directRolesRes.IsSuccessStatusCode)
                                     {
-                                        using var userDoc = await userExpandRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
-                                        if (userDoc != null)
+                                        using var rolesDoc = await directRolesRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
+                                        if (rolesDoc != null && rolesDoc.RootElement.TryGetProperty("value", out var valArr) && valArr.ValueKind == JsonValueKind.Array)
                                         {
-                                            var root = userDoc.RootElement;
-                                            if (root.TryGetProperty("systemuserroles_association", out var sysRoles) && sysRoles.ValueKind == JsonValueKind.Array)
+                                            foreach (var r in valArr.EnumerateArray())
                                             {
-                                                foreach (var r in sysRoles.EnumerateArray())
+                                                string rName = r.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
+                                                string rTpl = r.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
+                                                if (SystemAdminRoleTemplateId.Equals(rTpl, StringComparison.OrdinalIgnoreCase) || 
+                                                    rName.Contains("System Administrator", StringComparison.OrdinalIgnoreCase) || 
+                                                    rName.Contains("SystemAdmin", StringComparison.OrdinalIgnoreCase) ||
+                                                    rName.Contains("Admin", StringComparison.OrdinalIgnoreCase))
                                                 {
-                                                    string rName = r.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
-                                                    string rTpl = r.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
-                                                    if (SystemAdminRoleTemplateId.Equals(rTpl, StringComparison.OrdinalIgnoreCase) || 
-                                                        rName.Contains("System Administrator", StringComparison.OrdinalIgnoreCase) || 
-                                                        rName.Contains("SystemAdmin", StringComparison.OrdinalIgnoreCase))
-                                                    {
-                                                        isAdmin = true;
-                                                        break;
-                                                    }
+                                                    isAdmin = true;
+                                                    break;
                                                 }
                                             }
+                                        }
+                                    }
 
-                                            if (!isAdmin && root.TryGetProperty("user_roles_association", out var usrRoles) && usrRoles.ValueKind == JsonValueKind.Array)
+                                    // Endpoint 2: Filter Roles by user
+                                    if (!isAdmin)
+                                    {
+                                        var rolesFilterRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/roles?$select=name,roletemplateid&$filter=systemusers/any(u: u/systemuserid eq {userId})", cts.Token).ConfigureAwait(false);
+                                        if (rolesFilterRes.IsSuccessStatusCode)
+                                        {
+                                            using var rDoc = await rolesFilterRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
+                                            if (rDoc != null && rDoc.RootElement.TryGetProperty("value", out var valArr) && valArr.ValueKind == JsonValueKind.Array)
                                             {
-                                                foreach (var r in usrRoles.EnumerateArray())
+                                                foreach (var r in valArr.EnumerateArray())
                                                 {
                                                     string rName = r.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
                                                     string rTpl = r.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
@@ -635,10 +641,10 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                                         }
                                     }
 
-                                    // 2. Check Entra ID Group Teams Inherited Roles
+                                    // Endpoint 3: Entra ID Group Teams inherited security roles
                                     if (!isAdmin)
                                     {
-                                        var teamRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/teammembership_association?$select=teamid&$expand=teamroles_association($select=name,roletemplateid)", cts.Token).ConfigureAwait(false);
+                                        var teamRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/teammembership_association?$select=teamid", cts.Token).ConfigureAwait(false);
                                         if (teamRes.IsSuccessStatusCode)
                                         {
                                             using var teamDoc = await teamRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
@@ -646,18 +652,30 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                                             {
                                                 foreach (var t in teamArr.EnumerateArray())
                                                 {
-                                                    if (t.TryGetProperty("teamroles_association", out var tRoles) && tRoles.ValueKind == JsonValueKind.Array)
+                                                    if (t.TryGetProperty("teamid", out var tidProp))
                                                     {
-                                                        foreach (var tr in tRoles.EnumerateArray())
+                                                        string tid = tidProp.GetString() ?? "";
+                                                        if (!string.IsNullOrEmpty(tid))
                                                         {
-                                                            string trName = tr.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
-                                                            string trTpl = tr.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
-                                                            if (SystemAdminRoleTemplateId.Equals(trTpl, StringComparison.OrdinalIgnoreCase) || 
-                                                                trName.Contains("System Administrator", StringComparison.OrdinalIgnoreCase) || 
-                                                                trName.Contains("SystemAdmin", StringComparison.OrdinalIgnoreCase))
+                                                            var tRolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/teams({tid})/teamroles_association?$select=name,roletemplateid", cts.Token).ConfigureAwait(false);
+                                                            if (tRolesRes.IsSuccessStatusCode)
                                                             {
-                                                                isAdmin = true;
-                                                                break;
+                                                                using var trDoc = await tRolesRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
+                                                                if (trDoc != null && trDoc.RootElement.TryGetProperty("value", out var trArr) && trArr.ValueKind == JsonValueKind.Array)
+                                                                {
+                                                                    foreach (var tr in trArr.EnumerateArray())
+                                                                    {
+                                                                        string trName = tr.TryGetProperty("name", out var np) ? np.GetString() ?? "" : "";
+                                                                        string trTpl = tr.TryGetProperty("roletemplateid", out var tp) ? tp.GetString() ?? "" : "";
+                                                                        if (SystemAdminRoleTemplateId.Equals(trTpl, StringComparison.OrdinalIgnoreCase) || 
+                                                                            trName.Contains("System Administrator", StringComparison.OrdinalIgnoreCase) || 
+                                                                            trName.Contains("SystemAdmin", StringComparison.OrdinalIgnoreCase))
+                                                                        {
+                                                                            isAdmin = true;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -667,7 +685,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                                         }
                                     }
 
-                                    // 3. Fallback: Probe Admin privilege endpoint (Solution Metadata)
+                                    // Endpoint 4: Admin privilege probe (Solutions / Metadata Query)
                                     if (!isAdmin)
                                     {
                                         var solRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/solutions?$select=solutionid&$top=1", cts.Token).ConfigureAwait(false);
