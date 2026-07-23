@@ -8,10 +8,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Identity.Client;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using PowerPlatform.ProductivityEngine.Core.Connections;
-using Azure.Identity;
-using Azure.Core;
 
 namespace PowerPlatform.ProductivityEngine.Core.Authentication
 {
@@ -85,20 +84,46 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 ? await AutoDiscoverTenantIdAsync(PreferredUsername ?? "").ConfigureAwait(false)
                 : TenantId;
 
-            // Use Microsoft 1st-party pre-authorized Client ID to bypass admin consent requirements
-            var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
+            string authority = $"https://login.microsoftonline.com/{(string.IsNullOrWhiteSpace(effectiveTenant) ? "organizations" : effectiveTenant)}";
+
+            var pca = PublicClientApplicationBuilder.Create(PowerPlatformFirstPartyClientId)
+                .WithAuthority(authority)
+                .WithRedirectUri("http://localhost")
+                .Build();
+
+            string[] scopes = new[] { "https://globaldisco.crm.dynamics.com/user_impersonation" };
+
+            AuthenticationResult authResult;
+            try
             {
-                ClientId = PowerPlatformFirstPartyClientId,
-                TenantId = string.IsNullOrWhiteSpace(effectiveTenant) ? "organizations" : effectiveTenant,
-                LoginHint = PreferredUsername,
-                RedirectUri = new Uri("http://localhost")
-            });
+                // Force SelectAccount prompt so MSAL popup allows account picking without auto-selecting local Windows WAM hint
+                var acquireTokenBuilder = pca.AcquireTokenInteractive(scopes)
+                    .WithPrompt(Prompt.SelectAccount);
 
-            var tokenContext = new TokenRequestContext(new[] { "https://globaldisco.crm.dynamics.com/.default" });
-            var tokenResult = await credential.GetTokenAsync(tokenContext).ConfigureAwait(false);
-            string token = tokenResult.Token;
+                if (!string.IsNullOrWhiteSpace(PreferredUsername))
+                {
+                    acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(PreferredUsername);
+                }
 
-            SetSharedSsoToken(token, tokenResult.ExpiresOn);
+                authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+            }
+            catch (MsalException)
+            {
+                // Fallback attempt with .default scope
+                scopes = new[] { "https://globaldisco.crm.dynamics.com/.default" };
+                var acquireTokenBuilder = pca.AcquireTokenInteractive(scopes)
+                    .WithPrompt(Prompt.SelectAccount);
+
+                if (!string.IsNullOrWhiteSpace(PreferredUsername))
+                {
+                    acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(PreferredUsername);
+                }
+
+                authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+            }
+
+            string token = authResult.AccessToken;
+            SetSharedSsoToken(token, authResult.ExpiresOn);
 
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -143,7 +168,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             }
 
             string resourceUrl = profile.EnvironmentUrl.TrimEnd('/');
-            string scope = $"{resourceUrl}/.default";
+            string scope = $"{resourceUrl}/user_impersonation";
             string cacheKey = $"{profile.EnvironmentUrl}:{profile.Username}:{profile.ClientId}:{profile.ConnectionString}";
 
             if (TokenCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
@@ -179,17 +204,42 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 }
                 else
                 {
-                    var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
-                    {
-                        ClientId = PowerPlatformFirstPartyClientId,
-                        TenantId = "organizations",
-                        LoginHint = profile.Username,
-                        RedirectUri = new Uri("http://localhost")
-                    });
+                    string tenant = !string.IsNullOrWhiteSpace(profile.TenantId) ? profile.TenantId : "organizations";
+                    string authority = $"https://login.microsoftonline.com/{tenant}";
 
-                    var tokenContext = new TokenRequestContext(new[] { scope });
-                    var accessToken = await credential.GetTokenAsync(tokenContext).ConfigureAwait(false);
-                    token = accessToken.Token;
+                    var pca = PublicClientApplicationBuilder.Create(PowerPlatformFirstPartyClientId)
+                        .WithAuthority(authority)
+                        .WithRedirectUri("http://localhost")
+                        .Build();
+
+                    AuthenticationResult authResult;
+                    try
+                    {
+                        var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { scope })
+                            .WithPrompt(Prompt.SelectAccount);
+
+                        if (!string.IsNullOrWhiteSpace(profile.Username))
+                        {
+                            acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(profile.Username);
+                        }
+
+                        authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                    }
+                    catch (MsalException)
+                    {
+                        string fallbackScope = $"{resourceUrl}/.default";
+                        var acquireTokenBuilder = pca.AcquireTokenInteractive(new[] { fallbackScope })
+                            .WithPrompt(Prompt.SelectAccount);
+
+                        if (!string.IsNullOrWhiteSpace(profile.Username))
+                        {
+                            acquireTokenBuilder = acquireTokenBuilder.WithLoginHint(profile.Username);
+                        }
+
+                        authResult = await acquireTokenBuilder.ExecuteAsync().ConfigureAwait(false);
+                    }
+
+                    token = authResult.AccessToken;
                 }
 
                 var expires = DateTimeOffset.UtcNow.AddHours(1);
