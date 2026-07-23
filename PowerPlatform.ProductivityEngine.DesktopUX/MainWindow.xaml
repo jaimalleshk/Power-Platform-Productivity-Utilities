@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:PowerPlatform.ProductivityEngine.DesktopUX.ViewModels"
-        Title="Power Platform Environment Comparator &amp; Solution Explorer (.NET 9)" Height="870" Width="1350"
+        Title="Power Platform Productivity Engine Suite (.NET 9)" Height="890" Width="1380"
         Background="#0F172A" Foreground="#F8FAFC" WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
@@ -21,14 +21,13 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- TOP TOOLBAR & CONTROLS -->
+        <!-- TOP TOOLBAR & GLOBAL OAUTH DISCOVERY -->
         <Border Grid.Row="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,0,10" BorderBrush="#334155" BorderThickness="1">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                    <TextBlock Text="⚡ POWER PLATFORM COMPARATOR" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <TextBlock Text="⚡ POWER PLATFORM ENGINE SUITE" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,16,0"/>
                     <Button Content="🔑 Discover Envs (OAuth)" Command="{Binding DiscoverEnvironmentsCommand}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="12,6" Margin="0,0,8,0" BorderThickness="0"/>
-                    <Button Content="🔄 Run Compare / Explore" Command="{Binding CompareEnvironmentsCommand}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="14,6" Margin="0,0,16,0" BorderThickness="0"/>
-                    <CheckBox Content="Simulation Mode (Offline Demo)" IsChecked="{Binding IsSimulationMode}" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                    <CheckBox Content="Simulation Mode (Offline Demo)" IsChecked="{Binding IsSimulationMode}" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,16,0"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                     <Button Content="📊 Export HTML Dashboard" Command="{Binding ExportHtmlCommand}" Background="#334155" Foreground="White" Padding="10,6" Margin="0,0,6,0" BorderThickness="0"/>
@@ -53,146 +52,284 @@
             </Grid>
         </Border>
 
-        <!-- MAIN SPLIT CONTENT -->
-        <Grid Grid.Row="2" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="440"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- UNIFIED MODULE NAVIGATION NAVIGATION TABS -->
+        <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedModuleIndex}" Background="Transparent" BorderThickness="0" Margin="0,0,0,10">
+            <!-- TAB 1: MODULE 7 - MULTI-ENVIRONMENT COMPARATOR & SOLUTION EXPLORER -->
+            <TabItem Header="🌐 Environment Comparator (Module 7)" Foreground="#38BDF8" FontWeight="Bold" Padding="12,6">
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="450"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-            <!-- LEFT PANE: ENVS & UNIFIED SOLUTION EXPLORER TREE (ROOT 1 & ROOT 2) -->
-            <Border Grid.Column="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,12,0" BorderBrush="#334155" BorderThickness="1">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+                    <!-- LEFT PANE: SEARCHABLE ENVS LIST & UNIFIED SOLUTION EXPLORER TREE -->
+                    <Border Grid.Column="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,12,0" BorderBrush="#334155" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
 
-                    <!-- Discovered Environments Header & List -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                        <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                            <TextBlock Text="🌐 DISCOVERED ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button Content="➕ Add Env URL" Command="{Binding AddManualEnvCommand}" Background="#334155" Foreground="White" Padding="6,2" Margin="0,0,4,0" FontSize="11" BorderThickness="0"/>
-                                <Button Content="☑️ Toggle All" Command="{Binding SelectAllEnvsCommand}" Background="#334155" Foreground="White" Padding="6,2" FontSize="11" BorderThickness="0"/>
+                            <!-- SEARCHABLE DISCOVERED ENVIRONMENTS -->
+                            <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                                <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                    <TextBlock Text="🌐 DISCOVERED ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button Content="☑️ Select All" Command="{Binding SelectAllEnvsCommand}" Background="#334155" Foreground="White" Padding="6,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                        <Button Content="🔲 Select None" Command="{Binding SelectNoneEnvsCommand}" Background="#334155" Foreground="White" Padding="6,2" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                        <Button Content="➕ Add URL" Command="{Binding AddManualEnvCommand}" Background="#0284C7" Foreground="White" Padding="6,2" FontSize="10" BorderThickness="0"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <!-- Search / Filter Box -->
+                                <TextBox Text="{Binding EnvSearchText, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,4" Margin="0,0,0,6" FontSize="12"/>
+
+                                <ListBox ItemsSource="{Binding FilteredEnvironments}" Background="#0F172A" BorderBrush="#334155" Height="110">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Foreground="#F8FAFC" Margin="4,2" ToolTip="{Binding Url}"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </StackPanel>
-                        </DockPanel>
 
-                        <ListBox ItemsSource="{Binding DiscoveredEnvironments}" Background="#0F172A" BorderBrush="#334155" Height="95">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Foreground="#F8FAFC" Margin="4,2" ToolTip="{Binding Url}"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </StackPanel>
-
-                    <!-- Solution Explorer Controls Header -->
-                    <DockPanel Grid.Row="1" Margin="0,0,0,6" LastChildFill="False">
-                        <TextBlock Text="📁 SOLUTION EXPLORER TREE" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button Content="➕ Expand All" Command="{Binding ExpandAllCommand}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,4,0" FontSize="11" BorderThickness="0"/>
-                            <Button Content="➖ Collapse All" Command="{Binding CollapseAllCommand}" Background="#334155" Foreground="White" Padding="6,3" FontSize="11" BorderThickness="0"/>
-                        </StackPanel>
-                    </DockPanel>
-
-                    <!-- Unified Root 1 & Root 2 TreeView -->
-                    <TreeView Grid.Row="2" ItemsSource="{Binding UnifiedSolutionExplorerTree}" SelectedItemChanged="TreeView_SelectedItemChanged" Background="#0F172A" Foreground="#F8FAFC" BorderThickness="0">
-                        <TreeView.ItemContainerStyle>
-                            <Style TargetType="TreeViewItem">
-                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                                <Setter Property="Foreground" Value="#F8FAFC"/>
-                            </Style>
-                        </TreeView.ItemContainerStyle>
-                        <TreeView.ItemTemplate>
-                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" Margin="2">
-                                    <TextBlock Text="{Binding DisplayName}" Foreground="#F8FAFC" FontWeight="SemiBold" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{Binding Status}" Foreground="#38BDF8" FontSize="11" VerticalAlignment="Center"/>
+                            <!-- Solution Explorer Controls Header -->
+                            <DockPanel Grid.Row="1" Margin="0,0,0,6" LastChildFill="False">
+                                <TextBlock Text="📁 SOLUTION EXPLORER TREE" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="🔄 Run Compare" Command="{Binding CompareEnvironmentsCommand}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="8,3" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
+                                    <Button Content="➕ Expand" Command="{Binding ExpandAllCommand}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                    <Button Content="➖ Collapse" Command="{Binding CollapseAllCommand}" Background="#334155" Foreground="White" Padding="6,3" FontSize="10" BorderThickness="0"/>
                                 </StackPanel>
-                            </HierarchicalDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
+                            </DockPanel>
+
+                            <!-- Unified Root 1 & Root 2 TreeView -->
+                            <TreeView Grid.Row="2" ItemsSource="{Binding UnifiedSolutionExplorerTree}" SelectedItemChanged="TreeView_SelectedItemChanged" Background="#0F172A" Foreground="#F8FAFC" BorderThickness="0">
+                                <TreeView.ItemContainerStyle>
+                                    <Style TargetType="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                        <Setter Property="Foreground" Value="#F8FAFC"/>
+                                    </Style>
+                                </TreeView.ItemContainerStyle>
+                                <TreeView.ItemTemplate>
+                                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                        <StackPanel Orientation="Horizontal" Margin="2">
+                                            <TextBlock Text="{Binding DisplayName}" Foreground="#F8FAFC" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding Status}" Foreground="#38BDF8" FontSize="11" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </HierarchicalDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                        </Grid>
+                    </Border>
+
+                    <!-- RIGHT PANE: POLYMORPHIC CONTENT IN DETAIL TABS -->
+                    <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14" BorderBrush="#334155" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🔍 SELECTED ITEM: " FontWeight="Bold" Foreground="#94A3B8" FontSize="14"/>
+                                    <TextBlock Text="{Binding SelectedNode.DisplayName, FallbackValue='(Select an item in left tree)'}" FontWeight="Bold" Foreground="#38BDF8" FontSize="14"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Text="Unique Key: " Foreground="#64748B" FontSize="11"/>
+                                    <TextBlock Text="{Binding SelectedNode.UniqueKey}" Foreground="#CBD5E1" FontSize="11" Margin="0,0,16,0"/>
+                                    <TextBlock Text="Diff Status: " Foreground="#64748B" FontSize="11"/>
+                                    <TextBlock Text="{Binding SelectedNode.Status}" Foreground="#38BDF8" FontWeight="Bold" FontSize="11"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TabControl Grid.Row="1" ItemsSource="{Binding EnvDetailTabs}" Background="Transparent" BorderThickness="0">
+                                <TabControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Header}" Foreground="#38BDF8" FontWeight="Bold" FontSize="12" Margin="4,2"/>
+                                    </DataTemplate>
+                                </TabControl.ItemTemplate>
+                                <TabControl.ContentTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#0F172A" CornerRadius="6" Padding="10" Margin="0,6,0,0">
+                                            <Grid>
+                                                <DataGrid ItemsSource="{Binding Properties}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
+                                                    <DataGrid.Style>
+                                                        <Style TargetType="DataGrid">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ContentType}" Value="PropertyGrid">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </DataGrid.Style>
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="Property / Attribute" Binding="{Binding Key}" Width="240"/>
+                                                        <DataGridTextColumn Header="Value / Configuration" Binding="{Binding Value}" Width="*"/>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+
+                                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                                    <ScrollViewer.Style>
+                                                        <Style TargetType="ScrollViewer">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ContentType}" Value="CodeEditor">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding ContentType}" Value="XmlViewer">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ScrollViewer.Style>
+                                                    <TextBox Text="{Binding RawCodeContent}" IsReadOnly="True" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="13" Background="#0F172A" Foreground="#38BDF8" BorderThickness="0" Padding="8"/>
+                                                </ScrollViewer>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </TabControl.ContentTemplate>
+                            </TabControl>
+                        </Grid>
+                    </Border>
                 </Grid>
-            </Border>
+            </TabItem>
 
-            <!-- RIGHT PANE: POLYMORPHIC CONTENT IN DETAIL TABS (PROPERTY GRID VS CODE/XML VIEWER) -->
-            <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14" BorderBrush="#334155" BorderThickness="1">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+            <!-- TAB 2: MODULE 2 - SOLUTION DEEP VALIDATOR -->
+            <TabItem Header="🔍 Solution Deep Validator (Module 2)" Foreground="#38BDF8" FontWeight="Bold" Padding="12,6">
+                <Border Background="#1E293B" CornerRadius="8" Padding="16" Margin="0,10,0,0" BorderBrush="#334155" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                    <!-- Selected Item Header -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🔍 SELECTED ITEM: " FontWeight="Bold" Foreground="#94A3B8" FontSize="14"/>
-                            <TextBlock Text="{Binding SelectedNode.DisplayName, FallbackValue='(Select an item in left tree)'}" FontWeight="Bold" Foreground="#38BDF8" FontSize="14"/>
+                        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                            <TextBlock Text="🔍 SOLUTION DEEP VALIDATION SCANNER (19 CHECKERS)" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,8"/>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding ValZipPath, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6"/>
+                                <Button Grid.Column="1" Content="📁 Browse Solution ZIP..." Command="{Binding BrowseValZipCommand}" Background="#334155" Foreground="White" Padding="12,6" Margin="8,0,0,0" BorderThickness="0"/>
+                            </Grid>
+                            <DockPanel LastChildFill="False">
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                    <TextBlock Text="Target Environment URL: " Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox Text="{Binding ValTargetUrl, UpdateSourceTrigger=PropertyChanged}" Width="320" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,4" Margin="0,0,12,0"/>
+                                    <Button Content="▶️ Run 19 Deep Validation Checkers" Command="{Binding RunValidationCommand}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="16,6" BorderThickness="0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                    <TextBlock Text="Confidence Score: " Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ValConfidenceScore}" Foreground="#34D399" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DockPanel>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <TextBlock Text="Unique Key: " Foreground="#64748B" FontSize="11"/>
-                            <TextBlock Text="{Binding SelectedNode.UniqueKey}" Foreground="#CBD5E1" FontSize="11" Margin="0,0,16,0"/>
-                            <TextBlock Text="Diff Status: " Foreground="#64748B" FontSize="11"/>
-                            <TextBlock Text="{Binding SelectedNode.Status}" Foreground="#38BDF8" FontWeight="Bold" FontSize="11"/>
+
+                        <Border Grid.Row="1" Background="#0F172A" CornerRadius="6" Padding="10" Margin="0,0,0,12">
+                            <TextBlock Text="{Binding ValResultSummary}" Foreground="#F8FAFC" FontWeight="SemiBold"/>
+                        </Border>
+
+                        <DataGrid Grid.Row="2" ItemsSource="{Binding ValidationIssues}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Issue ID" Binding="{Binding Id}" Width="120"/>
+                                <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="100"/>
+                                <DataGridTextColumn Header="Component" Binding="{Binding ComponentType}" Width="140"/>
+                                <DataGridTextColumn Header="Logical Name" Binding="{Binding LogicalName}" Width="200"/>
+                                <DataGridTextColumn Header="Description &amp; Remediation" Binding="{Binding Description}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- TAB 3: MODULE 1 - SOLUTION REPAIR & DISTILLER -->
+            <TabItem Header="🔧 Solution Repair &amp; Distiller (Module 1)" Foreground="#38BDF8" FontWeight="Bold" Padding="12,6">
+                <Border Background="#1E293B" CornerRadius="8" Padding="16" Margin="0,10,0,0" BorderBrush="#334155" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                            <TextBlock Text="🔧 AUTOMATED SOLUTION REPAIR &amp; DISTILLER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,12"/>
+                            
+                            <TextBlock Text="Local Solution ZIP File to Repair:" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding RepairZipPath, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6"/>
+                                <Button Grid.Column="1" Content="📁 Browse Package..." Command="{Binding BrowseRepairZipCommand}" Background="#334155" Foreground="White" Padding="12,6" Margin="8,0,0,0" BorderThickness="0"/>
+                            </Grid>
+
+                            <TextBlock Text="Live Target Solution Name (for OOB Table Distillation):" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding RepairSolutionName, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6" Margin="0,0,16,0"/>
+
+                            <Button Content="⚡ Execute XML Syntax Repair &amp; OOB Table Bloat Distillation" Command="{Binding RunRepairDistillCommand}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="16,10" HorizontalAlignment="Left" BorderThickness="0"/>
                         </StackPanel>
-                    </StackPanel>
 
-                    <!-- Dynamic Polymorphic TabControl for Right Pane -->
-                    <TabControl Grid.Row="1" ItemsSource="{Binding EnvDetailTabs}" Background="Transparent" BorderThickness="0">
-                        <TabControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Header}" Foreground="#38BDF8" FontWeight="Bold" FontSize="12" Margin="4,2"/>
-                            </DataTemplate>
-                        </TabControl.ItemTemplate>
-                        <TabControl.ContentTemplate>
-                            <DataTemplate>
-                                <Border Background="#0F172A" CornerRadius="6" Padding="10" Margin="0,6,0,0">
-                                    <Grid>
-                                        <!-- View 1: Property Grid Table (for metadata & settings) -->
-                                        <DataGrid ItemsSource="{Binding Properties}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
-                                            <DataGrid.Style>
-                                                <Style TargetType="DataGrid">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding ContentType}" Value="PropertyGrid">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </DataGrid.Style>
-                                            <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Property / Attribute" Binding="{Binding Key}" Width="240"/>
-                                                <DataGridTextColumn Header="Value / Configuration" Binding="{Binding Value}" Width="*"/>
-                                            </DataGrid.Columns>
-                                        </DataGrid>
+                        <Border Grid.Row="1" Background="#0F172A" CornerRadius="6" Padding="14">
+                            <ScrollViewer>
+                                <TextBlock Text="{Binding RepairLogMessage}" Foreground="#38BDF8" FontFamily="Consolas, Courier New" FontSize="13"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+            </TabItem>
 
-                                        <!-- View 2: Code & XML Viewer (for JS Web Resources, C# Decompiled Plugins, Form XML, FetchXML) -->
-                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                            <ScrollViewer.Style>
-                                                <Style TargetType="ScrollViewer">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding ContentType}" Value="CodeEditor">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding ContentType}" Value="XmlViewer">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </ScrollViewer.Style>
-                                            <TextBox Text="{Binding RawCodeContent}" IsReadOnly="True" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="13" Background="#0F172A" Foreground="#38BDF8" BorderThickness="0" Padding="8"/>
-                                        </ScrollViewer>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </TabControl.ContentTemplate>
-                    </TabControl>
-                </Grid>
-            </Border>
-        </Grid>
+            <!-- TAB 4: MODULE 3 - MULTI-ENV USER & ROLE MANAGER -->
+            <TabItem Header="👥 User Security Role Manager (Module 3)" Foreground="#38BDF8" FontWeight="Bold" Padding="12,6">
+                <Border Background="#1E293B" CornerRadius="8" Padding="16" Margin="0,10,0,0" BorderBrush="#334155" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                            <TextBlock Text="👥 MULTI-ENVIRONMENT USER &amp; SECURITY ROLE MANAGER" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="User Emails / UPNs (comma separated):" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding RoleUserEmails, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6" Margin="0,0,10,0"/>
+
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="Target Security Role Name:" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding RoleTargetRole, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                    <TextBlock Text="Target Business Unit (optional):" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding RoleBusinessUnit, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="🔍 Audit Role Drift Across Envs" Command="{Binding RunRoleAuditCommand}" Background="#334155" Foreground="White" FontWeight="Bold" Padding="14,8" Margin="0,0,10,0" BorderThickness="0"/>
+                                <Button Content="⚡ Bulk Synchronize Security Roles" Command="{Binding RunRoleSyncCommand}" Background="#4338CA" Foreground="White" FontWeight="Bold" Padding="16,8" BorderThickness="0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Border Grid.Row="1" Background="#0F172A" CornerRadius="6" Padding="14">
+                            <ScrollViewer>
+                                <TextBlock Text="{Binding RoleLogMessage}" Foreground="#38BDF8" FontFamily="Consolas, Courier New" FontSize="13"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+            </TabItem>
+        </TabControl>
 
         <!-- STATUS BAR -->
         <Border Grid.Row="3" Background="#0F172A" Padding="6,4">
