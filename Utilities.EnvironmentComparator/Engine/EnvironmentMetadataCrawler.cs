@@ -42,9 +42,9 @@ namespace Utilities.EnvironmentComparator.Engine
             if (_useSimulationMode)
             {
                 await Task.Delay(300).ConfigureAwait(false);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling Dashboards, Env Variables, Solutions, PCF Controls, & D365 components for {envName}...", PercentComplete = 50 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling Default Solution, Active Unmanaged Layers, Solution Component Layers, & D365 components for {envName}...", PercentComplete = 50 });
                 GenerateSimulationData(envName, rawData, scope);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed full metadata crawl for {envName}.", PercentComplete = 100 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed Default Solution, Solution Layers, & Unmanaged Layer crawl for {envName}.", PercentComplete = 100 });
                 return rawData;
             }
 
@@ -55,39 +55,43 @@ namespace Utilities.EnvironmentComparator.Engine
             await CrawlAdminSettingsAsync(httpClient, envName, rawData).ConfigureAwait(false);
             await CrawlEnvVariablesAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 2. Crawl First-Party & Custom Solutions
-            progress?.Report(new ProgressUpdate { Stage = "Solutions Crawl", Message = $"[{envName}] Fetching Solutions and Version Inventories...", PercentComplete = 20 });
+            // 2. Crawl Default Solution, Managed & Unmanaged Customizations
+            progress?.Report(new ProgressUpdate { Stage = "Solutions Crawl", Message = $"[{envName}] Fetching Default Solution & Solution Inventories...", PercentComplete = 20 });
             await CrawlSolutionsAndAppsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 3. Crawl System & Interactive Dashboards
-            progress?.Report(new ProgressUpdate { Stage = "Dashboards Crawl", Message = $"[{envName}] Fetching System Dashboards & User Dashboards...", PercentComplete = 30 });
+            // 3. Crawl Active Unmanaged Layers & Solution Component Layers
+            progress?.Report(new ProgressUpdate { Stage = "Solution Layers Crawl", Message = $"[{envName}] Fetching Active Unmanaged Layers & Solution Component Layers...", PercentComplete = 30 });
+            await CrawlSolutionComponentLayersAsync(httpClient, rawData).ConfigureAwait(false);
+
+            // 4. Crawl System & Interactive Dashboards
+            progress?.Report(new ProgressUpdate { Stage = "Dashboards Crawl", Message = $"[{envName}] Fetching System Dashboards & User Dashboards...", PercentComplete = 40 });
             await CrawlDashboardsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 4. Crawl PCF Controls & Custom Control Resources
-            progress?.Report(new ProgressUpdate { Stage = "PCF Crawl", Message = $"[{envName}] Fetching PCF Controls (customcontrols)...", PercentComplete = 40 });
+            // 5. Crawl PCF Controls & Custom Control Resources
+            progress?.Report(new ProgressUpdate { Stage = "PCF Crawl", Message = $"[{envName}] Fetching PCF Controls (customcontrols)...", PercentComplete = 50 });
             await CrawlPcfControlsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 5. Crawl SiteMaps
-            progress?.Report(new ProgressUpdate { Stage = "SiteMaps Crawl", Message = $"[{envName}] Fetching Site Maps & Navigation Menus...", PercentComplete = 50 });
+            // 6. Crawl SiteMaps
+            progress?.Report(new ProgressUpdate { Stage = "SiteMaps Crawl", Message = $"[{envName}] Fetching Site Maps & Navigation Menus...", PercentComplete = 60 });
             await CrawlSiteMapsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 6. Crawl Field Security Profiles & Permissions
-            progress?.Report(new ProgressUpdate { Stage = "Security Crawl", Message = $"[{envName}] Fetching Field Security Profiles...", PercentComplete = 60 });
+            // 7. Crawl Field Security Profiles & Permissions
+            progress?.Report(new ProgressUpdate { Stage = "Security Crawl", Message = $"[{envName}] Fetching Field Security Profiles...", PercentComplete = 70 });
             await CrawlFieldSecurityProfilesAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 7. Crawl Connection References & Custom Connectors
-            progress?.Report(new ProgressUpdate { Stage = "Connectors Crawl", Message = $"[{envName}] Fetching Connection References & Custom Connectors...", PercentComplete = 70 });
+            // 8. Crawl Connection References & Custom Connectors
+            progress?.Report(new ProgressUpdate { Stage = "Connectors Crawl", Message = $"[{envName}] Fetching Connection References & Custom Connectors...", PercentComplete = 75 });
             await CrawlConnectionReferencesAndConnectorsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 8. Crawl Copilot Studio Bots & Topics
-            progress?.Report(new ProgressUpdate { Stage = "Copilot Studio Crawl", Message = $"[{envName}] Fetching Copilot Studio Bots & Topics...", PercentComplete = 75 });
+            // 9. Crawl Copilot Studio Bots & Topics
+            progress?.Report(new ProgressUpdate { Stage = "Copilot Studio Crawl", Message = $"[{envName}] Fetching Copilot Studio Bots & Topics...", PercentComplete = 80 });
             await CrawlCopilotStudioAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 9. Crawl Plug-in Assemblies, 100% Step Registration Attributes, & Custom APIs
-            progress?.Report(new ProgressUpdate { Stage = "Plugins Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies, Steps, & Custom APIs...", PercentComplete = 85 });
+            // 10. Crawl Plug-in Assemblies & Custom APIs
+            progress?.Report(new ProgressUpdate { Stage = "Plugins Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies & Custom APIs...", PercentComplete = 88 });
             await CrawlPluginsAndCustomApisAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 10. Crawl Forms, Views, Canvas Apps, Custom Pages, & Tables (OOB & Custom)
+            // 11. Crawl Forms, Views, Canvas Apps, Custom Pages, & Tables
             progress?.Report(new ProgressUpdate { Stage = "Tables Crawl", Message = $"[{envName}] Fetching Forms, Views, Columns, & OOB/Custom Tables...", PercentComplete = 95 });
             await CrawlFormsViewsAndCanvasAppsAsync(httpClient, rawData).ConfigureAwait(false);
             await CrawlTablesAsync(httpClient, rawData).ConfigureAwait(false);
@@ -146,7 +150,6 @@ namespace Utilities.EnvironmentComparator.Engine
                             string defaultVal = def.TryGetProperty("defaultvalue", out var dv) ? dv.GetString() ?? "" : "";
                             string typeStr = def.TryGetProperty("type", out var t) ? t.GetInt32().ToString() : "0";
 
-                            // Root 1 Entry: Environment Variable Definitions & Values
                             rawData.AdminSettings[$"EnvVariable.{schema}"] = new Dictionary<string, string>
                             {
                                 ["DisplayName"] = def.TryGetProperty("displayname", out var dn) ? dn.GetString() ?? "" : "",
@@ -155,13 +158,116 @@ namespace Utilities.EnvironmentComparator.Engine
                                 ["Value"] = defaultVal
                             };
 
-                            // Root 2 Entry: Environment Variable Metadata Node
                             rawData.MetadataItems[$"EnvVariable.{schema}"] = new Dictionary<string, string>
                             {
                                 ["DisplayName"] = def.TryGetProperty("displayname", out var dn2) ? dn2.GetString() ?? "" : "",
                                 ["DefaultValue"] = defaultVal,
                                 ["Type"] = typeStr,
                                 ["Value"] = defaultVal
+                            };
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private async Task CrawlSolutionsAndAppsAsync(HttpClient client, RawEnvData rawData)
+        {
+            try
+            {
+                // Fetch All Solutions including Default Solution
+                var resS = await client.GetAsync("solutions?$select=uniquename,friendlyname,version,ismanaged,isvisible").ConfigureAwait(false);
+                if (resS.IsSuccessStatusCode)
+                {
+                    using var doc = await resS.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var sol in value.EnumerateArray())
+                        {
+                            string uniqueName = sol.GetProperty("uniquename").GetString() ?? "";
+                            if (string.IsNullOrEmpty(uniqueName)) continue;
+
+                            string itemPrefix = uniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase) ? "DefaultSolution." : "Solution.";
+
+                            rawData.MetadataItems[$"{itemPrefix}{uniqueName}"] = new Dictionary<string, string>
+                            {
+                                ["FriendlyName"] = sol.TryGetProperty("friendlyname", out var fn) ? fn.GetString() ?? "" : "",
+                                ["Version"] = sol.TryGetProperty("version", out var v) ? v.GetString() ?? "" : "",
+                                ["IsManaged"] = sol.TryGetProperty("ismanaged", out var im) ? im.GetBoolean().ToString() : "true"
+                            };
+                        }
+                    }
+                }
+
+                var resA = await client.GetAsync("appmodules?$select=name,uniquename,versionnumber,statecode").ConfigureAwait(false);
+                if (resA.IsSuccessStatusCode)
+                {
+                    using var doc = await resA.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var app in value.EnumerateArray())
+                        {
+                            string uniqueName = app.GetProperty("uniquename").GetString() ?? "";
+                            if (string.IsNullOrEmpty(uniqueName)) continue;
+
+                            rawData.MetadataItems[$"InstalledApp.{uniqueName}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = app.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                                ["Version"] = app.TryGetProperty("versionnumber", out var v) ? v.GetInt64().ToString() : "1",
+                                ["State"] = app.TryGetProperty("statecode", out var st) && st.GetInt32() == 0 ? "Active" : "Inactive"
+                            };
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private async Task CrawlSolutionComponentLayersAsync(HttpClient client, RawEnvData rawData)
+        {
+            try
+            {
+                // Crawl Active Unmanaged Customizations (solutioncomponent with ismanaged = false)
+                var resActive = await client.GetAsync("solutioncomponents?$filter=ismanaged eq false&$select=componenttype,objectid,rootsolutioncomponentid").ConfigureAwait(false);
+                if (resActive.IsSuccessStatusCode)
+                {
+                    using var doc = await resActive.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var comp in value.EnumerateArray())
+                        {
+                            string compId = comp.TryGetProperty("objectid", out var obj) ? obj.GetString() ?? "" : "";
+                            int compType = comp.TryGetProperty("componenttype", out var ct) ? ct.GetInt32() : 0;
+                            if (string.IsNullOrEmpty(compId)) continue;
+
+                            rawData.MetadataItems[$"UnmanagedLayer.Component_{compType}_{compId}"] = new Dictionary<string, string>
+                            {
+                                ["ComponentType"] = compType.ToString(),
+                                ["HasUnmanagedLayer"] = "True",
+                                ["LayerState"] = "Active Customization (Unmanaged Overwrite)"
+                            };
+                        }
+                    }
+                }
+
+                // Crawl Solution Component Summaries / Layers (msdyn_solutioncomponentsummaries)
+                var resLayers = await client.GetAsync("msdyn_solutioncomponentsummaries?$select=msdyn_name,msdyn_componenttypename,msdyn_culturename,msdyn_executionorder").ConfigureAwait(false);
+                if (resLayers.IsSuccessStatusCode)
+                {
+                    using var doc = await resLayers.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var layer in value.EnumerateArray())
+                        {
+                            string name = layer.TryGetProperty("msdyn_name", out var n) ? n.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            rawData.MetadataItems[$"SolutionLayer.{name}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = name,
+                                ["ComponentType"] = layer.TryGetProperty("msdyn_componenttypename", out var ct) ? ct.GetString() ?? "" : "",
+                                ["TopLayer"] = layer.TryGetProperty("msdyn_culturename", out var cul) ? cul.GetString() ?? "Active" : "Active"
                             };
                         }
                     }
@@ -190,55 +296,6 @@ namespace Utilities.EnvironmentComparator.Engine
                                 ["DisplayName"] = name,
                                 ["Description"] = dash.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
                                 ["XmlLength"] = dash.TryGetProperty("formxml", out var xml) ? (xml.GetString()?.Length ?? 0).ToString() : "0"
-                            };
-                        }
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private async Task CrawlSolutionsAndAppsAsync(HttpClient client, RawEnvData rawData)
-        {
-            try
-            {
-                var resS = await client.GetAsync("solutions?$select=uniquename,friendlyname,version,ismanaged").ConfigureAwait(false);
-                if (resS.IsSuccessStatusCode)
-                {
-                    using var doc = await resS.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
-                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
-                    {
-                        foreach (var sol in value.EnumerateArray())
-                        {
-                            string uniqueName = sol.GetProperty("uniquename").GetString() ?? "";
-                            if (string.IsNullOrEmpty(uniqueName)) continue;
-
-                            rawData.MetadataItems[$"Solution.{uniqueName}"] = new Dictionary<string, string>
-                            {
-                                ["FriendlyName"] = sol.TryGetProperty("friendlyname", out var fn) ? fn.GetString() ?? "" : "",
-                                ["Version"] = sol.TryGetProperty("version", out var v) ? v.GetString() ?? "" : "",
-                                ["IsManaged"] = sol.TryGetProperty("ismanaged", out var im) ? im.GetBoolean().ToString() : "true"
-                            };
-                        }
-                    }
-                }
-
-                var resA = await client.GetAsync("appmodules?$select=name,uniquename,versionnumber,statecode").ConfigureAwait(false);
-                if (resA.IsSuccessStatusCode)
-                {
-                    using var doc = await resA.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
-                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
-                    {
-                        foreach (var app in value.EnumerateArray())
-                        {
-                            string uniqueName = app.GetProperty("uniquename").GetString() ?? "";
-                            if (string.IsNullOrEmpty(uniqueName)) continue;
-
-                            rawData.MetadataItems[$"InstalledApp.{uniqueName}"] = new Dictionary<string, string>
-                            {
-                                ["DisplayName"] = app.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
-                                ["Version"] = app.TryGetProperty("versionnumber", out var v) ? v.GetInt64().ToString() : "1",
-                                ["State"] = app.TryGetProperty("statecode", out var st) && st.GetInt32() == 0 ? "Active" : "Inactive"
                             };
                         }
                     }
@@ -580,7 +637,29 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["Value"] = isDev ? "https://dev.api.payments.com" : (isTest ? "https://test.api.payments.com" : "https://prod.api.payments.com")
             };
 
-            // 2. Metadata Items (Root 2)
+            // 2. Default Solution & Active Unmanaged Layers (Root 2)
+            rawData.MetadataItems["DefaultSolution.Default"] = new Dictionary<string, string>
+            {
+                ["FriendlyName"] = "Default Solution (System & Unmanaged Customizations Master)",
+                ["Version"] = "9.2.0.0",
+                ["IsManaged"] = "False"
+            };
+
+            rawData.MetadataItems["UnmanagedLayer.AccountForm_Active"] = new Dictionary<string, string>
+            {
+                ["ComponentName"] = "Account Main Form",
+                ["HasUnmanagedLayer"] = isDev ? "True (Active Unmanaged Modification)" : "False",
+                ["LayerPublisher"] = "Default Publisher"
+            };
+
+            rawData.MetadataItems["SolutionLayer.AccountPluginStep_Layers"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "CreateAccount_PostOp Plugin Step Layers",
+                ["TopLayer"] = isDev ? "Active (Unmanaged)" : "SalesHub (Managed)",
+                ["LayersCount"] = "3"
+            };
+
+            // Solutions & Installed App Modules
             rawData.MetadataItems["Solution.msdyn_SalesHub"] = new Dictionary<string, string>
             {
                 ["FriendlyName"] = "Sales Hub App Solution",
@@ -595,7 +674,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["State"] = "Active"
             };
 
-            // System Dashboards
+            // Dashboards
             rawData.MetadataItems["Dashboard.Sales Performance Dashboard"] = new Dictionary<string, string>
             {
                 ["DisplayName"] = "Sales Performance Dashboard",

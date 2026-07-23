@@ -15,6 +15,8 @@ namespace Utilities.EnvironmentComparator.Engine
                 ComparedAt = DateTime.UtcNow
             };
 
+            bool isSingleEnvExploration = envDataList.Count == 1;
+
             // 1. Process Admin Settings & Environment Variables (Root 1)
             var adminKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var env in envDataList)
@@ -25,7 +27,7 @@ namespace Utilities.EnvironmentComparator.Engine
             foreach (var key in adminKeys.OrderBy(k => k))
             {
                 var node = BuildNode(key, RootCategory.AdminSettings, envDataList, (env) => 
-                    env.AdminSettings.TryGetValue(key, out var dict) ? dict : null);
+                    env.AdminSettings.TryGetValue(key, out var dict) ? dict : null, isSingleEnvExploration);
 
                 if (MatchesFilter(node, scope))
                 {
@@ -45,7 +47,7 @@ namespace Utilities.EnvironmentComparator.Engine
             foreach (var key in metadataKeys.OrderBy(k => k))
             {
                 var node = BuildNode(key, RootCategory.MetadataCustomizations, envDataList, (env) => 
-                    env.MetadataItems.TryGetValue(key, out var dict) ? dict : null);
+                    env.MetadataItems.TryGetValue(key, out var dict) ? dict : null, isSingleEnvExploration);
 
                 if (MatchesFilter(node, scope))
                 {
@@ -63,7 +65,38 @@ namespace Utilities.EnvironmentComparator.Engine
         {
             var rootNodes = new List<DiffNode>();
 
-            // Group 0A: Installed Solutions & First-Party Packages (Expandable with OOB Component Trees)
+            // Group 0A: Default Solution & Unmanaged Customizations Master
+            var defaultSolNodes = flatNodes.Where(n => n.SubCategory.Equals("DefaultSolution", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (defaultSolNodes.Count > 0)
+            {
+                var defaultSolFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📦 Default Solution & System Customizations Master",
+                    UniqueKey = "Folder.DefaultSolution"
+                };
+                foreach (var n in defaultSolNodes) defaultSolFolder.Children.Add(n);
+                rootNodes.Add(defaultSolFolder);
+            }
+
+            // Group 0B: Active Unmanaged Customization Layers & Solution Component Layers
+            var layerNodes = flatNodes.Where(n => n.SubCategory.StartsWith("UnmanagedLayer", StringComparison.OrdinalIgnoreCase) || 
+                                                  n.SubCategory.StartsWith("SolutionLayer", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (layerNodes.Count > 0)
+            {
+                var layerFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "🥞 Active Unmanaged Customization Layers & Solution Component Layers",
+                    UniqueKey = "Folder.SolutionLayers"
+                };
+                foreach (var n in layerNodes) layerFolder.Children.Add(n);
+                rootNodes.Add(layerFolder);
+            }
+
+            // Group 0C: Installed Solutions & First-Party Packages (Expandable Component Sub-Trees)
             var solNodes = flatNodes.Where(n => n.SubCategory.Equals("Solution", StringComparison.OrdinalIgnoreCase)).ToList();
             if (solNodes.Count > 0)
             {
@@ -77,7 +110,6 @@ namespace Utilities.EnvironmentComparator.Engine
 
                 foreach (var solNode in solNodes)
                 {
-                    // Build Expandable Solution Component Tree under each Solution
                     var solComponentTree = BuildComponentSubTreeForSolution(solNode, flatNodes);
                     solFolder.Children.Add(solComponentTree);
                 }
@@ -85,7 +117,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(solFolder);
             }
 
-            // Group 0B: Installed D365 Apps, Canvas Apps, & Custom Pages
+            // Group 0D: Installed D365 Apps, Canvas Apps, & Custom Pages
             var appNodes = flatNodes.Where(n => n.SubCategory.Equals("InstalledApp", StringComparison.OrdinalIgnoreCase) || 
                                                 n.SubCategory.Equals("CanvasApp", StringComparison.OrdinalIgnoreCase) ||
                                                 n.SubCategory.Equals("CustomPage", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -102,7 +134,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(appFolder);
             }
 
-            // Group 0C: System & Interactive Dashboards
+            // Group 0E: System & Interactive Dashboards
             var dashNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Dashboard", StringComparison.OrdinalIgnoreCase)).ToList();
             if (dashNodes.Count > 0)
             {
@@ -117,7 +149,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(dashFolder);
             }
 
-            // Group 0D: PCF Controls (PowerApps Component Framework)
+            // Group 0F: PCF Controls (PowerApps Component Framework)
             var pcfNodes = flatNodes.Where(n => n.SubCategory.StartsWith("PcfControl", StringComparison.OrdinalIgnoreCase)).ToList();
             if (pcfNodes.Count > 0)
             {
@@ -132,7 +164,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(pcfFolder);
             }
 
-            // Group 0E: Site Maps & Navigation Menus
+            // Group 0G: Site Maps & Navigation Menus
             var sitemapNodes = flatNodes.Where(n => n.SubCategory.StartsWith("SiteMap", StringComparison.OrdinalIgnoreCase)).ToList();
             if (sitemapNodes.Count > 0)
             {
@@ -147,7 +179,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(sitemapFolder);
             }
 
-            // Group 0F: Copilot Studio Bots & Topics
+            // Group 0H: Copilot Studio Bots & Topics
             var copilotNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Copilot", StringComparison.OrdinalIgnoreCase)).ToList();
             if (copilotNodes.Count > 0)
             {
@@ -162,7 +194,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(copilotFolder);
             }
 
-            // Group 0G: Connection References & Custom Connectors
+            // Group 0I: Connection References & Custom Connectors
             var connRefNodes = flatNodes.Where(n => n.SubCategory.Equals("ConnectionReference", StringComparison.OrdinalIgnoreCase) || 
                                                     n.SubCategory.Equals("CustomConnector", StringComparison.OrdinalIgnoreCase)).ToList();
             if (connRefNodes.Count > 0)
@@ -178,7 +210,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(connRefFolder);
             }
 
-            // Group 0H: Field Security Profiles & Field Permissions
+            // Group 0J: Field Security Profiles & Field Permissions
             var fspNodes = flatNodes.Where(n => n.SubCategory.StartsWith("FieldSecurity", StringComparison.OrdinalIgnoreCase) || 
                                                 n.SubCategory.StartsWith("FieldPermission", StringComparison.OrdinalIgnoreCase)).ToList();
             if (fspNodes.Count > 0)
@@ -283,7 +315,7 @@ namespace Utilities.EnvironmentComparator.Engine
             }
 
             // Remaining components
-            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(dashNodes).Concat(pcfNodes).Concat(sitemapNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(fspNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
+            var handledKeys = new HashSet<string>(defaultSolNodes.Concat(layerNodes).Concat(solNodes).Concat(appNodes).Concat(dashNodes).Concat(pcfNodes).Concat(sitemapNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(fspNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
             var otherNodes = flatNodes.Where(n => !handledKeys.Contains(n.UniqueKey)).ToList();
             if (otherNodes.Count > 0)
             {
@@ -314,7 +346,6 @@ namespace Utilities.EnvironmentComparator.Engine
                 PropertyDiffs = solutionNode.PropertyDiffs
             };
 
-            // Add Components Sub-Folder under this Solution
             var compFolder = new DiffNode
             {
                 RootCategory = RootCategory.MetadataCustomizations,
@@ -323,7 +354,6 @@ namespace Utilities.EnvironmentComparator.Engine
                 UniqueKey = $"{solutionNode.UniqueKey}.Components"
             };
 
-            // Populate Solution Component Folders (Tables, Plug-ins, Apps, Flows, Env Variables)
             var tableFolder = new DiffNode { DisplayName = "📁 Entities / Tables", UniqueKey = $"{solutionNode.UniqueKey}.Tables" };
             foreach (var t in flatNodes.Where(n => n.SubCategory.Contains("Table") || n.SubCategory.Contains("Form") || n.SubCategory.Contains("View")))
             {
@@ -359,7 +389,8 @@ namespace Utilities.EnvironmentComparator.Engine
             string fullKey, 
             RootCategory rootCategory, 
             List<RawEnvData> envDataList, 
-            Func<RawEnvData, Dictionary<string, string>?> dictSelector)
+            Func<RawEnvData, Dictionary<string, string>?> dictSelector,
+            bool isSingleEnvExploration)
         {
             string subCategory = fullKey.Contains('.') ? fullKey.Split('.')[0] : "General";
             string displayName = fullKey.Contains('.') ? fullKey.Substring(fullKey.IndexOf('.') + 1) : fullKey;
@@ -388,7 +419,8 @@ namespace Utilities.EnvironmentComparator.Engine
                         (props.TryGetValue("Format", out var fmt) ? fmt : 
                         (props.TryGetValue("FormType", out var ft) ? ft : 
                         (props.TryGetValue("QueryType", out var qt) ? qt : 
-                        (props.TryGetValue("MaxLength", out var ml) ? $"MaxLength={ml}" : "Present"))))));
+                        (props.TryGetValue("HasUnmanagedLayer", out var ul) ? ul : 
+                        (props.TryGetValue("MaxLength", out var ml) ? $"MaxLength={ml}" : "Present")))))));
 
                     envSummaries[env.EnvironmentName] = summaryVal;
 
@@ -402,7 +434,12 @@ namespace Utilities.EnvironmentComparator.Engine
 
             node.EnvironmentValues = envSummaries;
 
-            if (presentCount < envDataList.Count)
+            if (isSingleEnvExploration)
+            {
+                // Single Environment Explorer Mode (No comparison status badges needed)
+                node.Status = DiffStatus.Identical;
+            }
+            else if (presentCount < envDataList.Count)
             {
                 node.Status = DiffStatus.Unique;
             }
@@ -426,10 +463,10 @@ namespace Utilities.EnvironmentComparator.Engine
                     vals.Add(valStr);
                 }
 
-                pDiff.IsMismatch = vals.Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
+                pDiff.IsMismatch = !isSingleEnvExploration && vals.Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
                 node.PropertyDiffs.Add(pDiff);
 
-                if (pDiff.IsMismatch && node.Status == DiffStatus.Identical)
+                if (!isSingleEnvExploration && pDiff.IsMismatch && node.Status == DiffStatus.Identical)
                 {
                     node.Status = DiffStatus.Delta;
                 }
