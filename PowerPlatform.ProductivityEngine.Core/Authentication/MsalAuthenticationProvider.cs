@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.PowerPlatform.Dataverse.Client;
@@ -10,18 +15,80 @@ using Azure.Core;
 
 namespace PowerPlatform.ProductivityEngine.Core.Authentication
 {
+    public class DiscoveredTenantEnv
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string EnvironmentId { get; set; } = string.Empty;
+    }
+
     public class MsalAuthenticationProvider : IAuthenticationProvider
     {
         private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)> TokenCache = 
             new ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)>();
 
         private static (string Token, DateTimeOffset ExpiresOn)? SharedSsoToken;
-
         private static readonly SemaphoreSlim AuthSemaphore = new SemaphoreSlim(1, 1);
+
+        public string? PreferredUsername { get; }
+        public string? TenantId { get; }
+
+        public MsalAuthenticationProvider(string? username = null, string? tenantId = null)
+        {
+            PreferredUsername = username;
+            TenantId = tenantId;
+        }
 
         public void SetSharedSsoToken(string token, DateTimeOffset expiresOn)
         {
             SharedSsoToken = (token, expiresOn);
+        }
+
+        public async Task<List<DiscoveredTenantEnv>> DiscoverEnvironmentsAsync()
+        {
+            var discoveredEnvs = new List<DiscoveredTenantEnv>();
+
+            var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
+            {
+                TenantId = string.IsNullOrWhiteSpace(TenantId) ? "common" : TenantId,
+                LoginHint = PreferredUsername
+            });
+
+            var tokenContext = new TokenRequestContext(new[] { "https://globaldisco.crm.dynamics.com/.default" });
+            var tokenResult = await credential.GetTokenAsync(tokenContext).ConfigureAwait(false);
+            string token = tokenResult.Token;
+
+            SetSharedSsoToken(token, tokenResult.ExpiresOn);
+
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await httpClient.GetAsync("https://globaldisco.crm.dynamics.com/api/discovery/v9.2/Instances").ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+            {
+                using var doc = await response.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                {
+                    foreach (var inst in value.EnumerateArray())
+                    {
+                        string name = inst.TryGetProperty("FriendlyName", out var fn) ? fn.GetString() ?? "" : "";
+                        string url = inst.TryGetProperty("ApiUrl", out var u) ? u.GetString() ?? "" : "";
+                        string id = inst.TryGetProperty("Id", out var i) ? i.GetString() ?? "" : "";
+
+                        if (!string.IsNullOrEmpty(url))
+                        {
+                            discoveredEnvs.Add(new DiscoveredTenantEnv
+                            {
+                                Name = string.IsNullOrEmpty(name) ? url : name,
+                                Url = url,
+                                EnvironmentId = id
+                            });
+                        }
+                    }
+                }
+            }
+
+            return discoveredEnvs;
         }
 
         public async Task<string> GetAccessTokenAsync(ConnectionProfile profile)
@@ -54,7 +121,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
                 string token;
 
-                // 1. If connection string is provided, use ServiceClient to acquire token
                 if (!string.IsNullOrWhiteSpace(profile.ConnectionString))
                 {
                     using (var serviceClient = new ServiceClient(profile.ConnectionString))
@@ -71,7 +137,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                         }
                     }
                 }
-                // 2. Interactive / DefaultAzureCredential single login
                 else
                 {
                     var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
@@ -87,7 +152,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 var expires = DateTimeOffset.UtcNow.AddHours(1);
                 TokenCache[cacheKey] = (token, expires);
 
-                // Set as shared SSO token for single-login across all environments and Power Platform APIs
                 SharedSsoToken = (token, expires);
 
                 return token;
