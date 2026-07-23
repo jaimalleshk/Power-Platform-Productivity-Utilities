@@ -336,6 +336,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public ICommand SelectNoneEnvsCommand { get; }
         public ICommand CheckAdminAccessCommand { get; }
         public ICommand OpenModuleTabCommand { get; }
+        public ICommand OpenEnvDetailsCommand { get; }
 
         public ICommand ExpandAllCommand { get; }
         public ICommand CollapseAllCommand { get; }
@@ -374,6 +375,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             SelectNoneEnvsCommand = new RelayCommand(_ => SetAllEnvsSelected(false));
             CheckAdminAccessCommand = new RelayCommand(async _ => await CheckAdminAccessAsync());
             OpenModuleTabCommand = new RelayCommand(param => OpenModuleTab(param?.ToString() ?? ""));
+            OpenEnvDetailsCommand = new RelayCommand(param => OpenEnvDetails(param as SelectableEnv));
 
             ExpandAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, true));
             CollapseAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, false));
@@ -493,6 +495,19 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     SelectedTabIndex = Math.Min(index, WorkspaceTabs.Count - 1);
                 }
             }
+        }
+
+        private void OpenEnvDetails(SelectableEnv? env)
+        {
+            if (env == null) return;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var dialog = new EnvironmentDetailsDialog(env, UserEmail)
+                {
+                    Owner = Application.Current?.MainWindow
+                };
+                dialog.ShowDialog();
+            });
         }
 
         private void AddEnvironmentToList(string name, string url, bool isSelected, bool isAdmin = false)
