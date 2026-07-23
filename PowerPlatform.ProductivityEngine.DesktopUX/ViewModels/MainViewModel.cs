@@ -34,9 +34,22 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
     }
 
+    public class KeyValueRow
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+    }
+
+    public class EnvDetailTabViewModel
+    {
+        public string Header { get; set; } = string.Empty;
+        public bool IsComparisonTab { get; set; }
+        public ObservableCollection<KeyValueRow> Properties { get; } = new();
+    }
+
     public class MainViewModel : INotifyPropertyChanged
     {
-        private bool _isSimulationMode = false; // Default to Live Mode for Discover Envs button
+        private bool _isSimulationMode = false;
         private string _statusMessage = "Ready. Click 'Discover Envs (OAuth)' to connect to your tenant.";
         private string _userEmail = string.Empty;
         private int _totalItems;
@@ -48,6 +61,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public ObservableCollection<SelectableEnv> DiscoveredEnvironments { get; } = new();
         public ObservableCollection<DiffNode> UnifiedSolutionExplorerTree { get; } = new();
         public ObservableCollection<PropertyDiff> SelectedNodeProperties { get; } = new();
+        public ObservableCollection<EnvDetailTabViewModel> EnvDetailTabs { get; } = new();
 
         public ComparisonScope Scope { get; } = new ComparisonScope();
 
@@ -82,6 +96,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 _selectedNode = value;
                 OnPropertyChanged();
                 UpdateSelectedNodeProperties();
+                UpdateEnvDetailTabs();
             }
         }
 
@@ -109,7 +124,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             ExportExcelCommand = new RelayCommand(_ => ExportExcel());
             SaveToSqliteCommand = new RelayCommand(_ => SaveToSqlite());
 
-            // Initialize default mock environments for quick offline demo
             DiscoveredEnvironments.Add(new SelectableEnv { Name = "contoso-dev", Url = "https://contoso-dev.crm.dynamics.com", IsSelected = true });
             DiscoveredEnvironments.Add(new SelectableEnv { Name = "contoso-test", Url = "https://contoso-test.crm.dynamics.com", IsSelected = true });
             DiscoveredEnvironments.Add(new SelectableEnv { Name = "contoso-prod", Url = "https://contoso-prod.crm.dynamics.com", IsSelected = true });
@@ -121,7 +135,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             string enteredUsername = string.Empty;
             string enteredTenant = string.Empty;
 
-            // Always show Credential Dialog on UI Dispatcher thread when button is clicked
             Application.Current.Dispatcher.Invoke(() =>
             {
                 var dialog = new CredentialDialog
@@ -144,7 +157,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             }
 
             UserEmail = enteredUsername;
-            IsSimulationMode = false; // Turn off simulation mode for live tenant discovery
+            IsSimulationMode = false;
             StatusMessage = $"Authenticating as {UserEmail} via MSAL Azure AD...";
 
             try
@@ -224,7 +237,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             var comparer = new NWayComparer();
             _lastResult = comparer.CompareEnvironments(_lastRawEnvDataList, Scope);
 
-            // Build Unified Root 1 & Root 2 Tree
             var root1Folder = new DiffNode
             {
                 RootCategory = RootCategory.AdminSettings,
@@ -276,6 +288,48 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             foreach (var prop in _selectedNode.PropertyDiffs)
             {
                 SelectedNodeProperties.Add(prop);
+            }
+        }
+
+        private void UpdateEnvDetailTabs()
+        {
+            EnvDetailTabs.Clear();
+            if (_selectedNode == null) return;
+
+            // 1. First Tab: Comparison Matrix
+            var compTab = new EnvDetailTabViewModel
+            {
+                Header = "📊 Side-by-Side Comparison",
+                IsComparisonTab = true
+            };
+            if (_selectedNode.EnvironmentValues != null)
+            {
+                foreach (var kv in _selectedNode.EnvironmentValues)
+                {
+                    compTab.Properties.Add(new KeyValueRow { Key = kv.Key, Value = kv.Value });
+                }
+            }
+            EnvDetailTabs.Add(compTab);
+
+            // 2. Subsequent Tabs: One Tab for Each Environment
+            if (_lastResult != null && _lastResult.TargetEnvironmentNames != null)
+            {
+                foreach (var envName in _lastResult.TargetEnvironmentNames)
+                {
+                    var envTab = new EnvDetailTabViewModel
+                    {
+                        Header = $"🌐 {envName}",
+                        IsComparisonTab = false
+                    };
+
+                    foreach (var propDiff in _selectedNode.PropertyDiffs)
+                    {
+                        string val = propDiff.ValuesPerEnv.TryGetValue(envName, out var v) ? v : "[N/A]";
+                        envTab.Properties.Add(new KeyValueRow { Key = propDiff.PropertyName, Value = val });
+                    }
+
+                    EnvDetailTabs.Add(envTab);
+                }
             }
         }
 

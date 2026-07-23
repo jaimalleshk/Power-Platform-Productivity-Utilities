@@ -90,19 +90,18 @@
                 </Grid>
             </Border>
 
-            <!-- RIGHT PANE: DATA FOR SELECTED ITEM IN LEFT PANE -->
+            <!-- RIGHT PANE: DYNAMIC TABS FOR COMPARISON & EACH ENVIRONMENT -->
             <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14" BorderBrush="#334155" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="140"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <!-- Selected Item Header -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🔍 SELECTED ITEM DATA: " FontWeight="Bold" Foreground="#94A3B8" FontSize="14"/>
+                            <TextBlock Text="🔍 SELECTED ITEM: " FontWeight="Bold" Foreground="#94A3B8" FontSize="14"/>
                             <TextBlock Text="{Binding SelectedNode.DisplayName, FallbackValue='(Select an item in left tree)'}" FontWeight="Bold" Foreground="#38BDF8" FontSize="14"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
@@ -113,35 +112,26 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Top Table: Values Per Environment for Selected Node -->
-                    <Grid Grid.Row="1" Margin="0,0,0,12">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="🌐 Environment Values Summary" FontWeight="Bold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
-                        <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedNode.EnvironmentValues}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Environment Name" Binding="{Binding Key}" Width="200"/>
-                                <DataGridTextColumn Header="Value / Version / Status" Binding="{Binding Value}" Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-
-                    <!-- Bottom Table: Detailed Property Mismatch Matrix for Selected Node -->
-                    <Grid Grid.Row="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="📋 Property-Level Diff &amp; Value Breakdown" FontWeight="Bold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
-                        <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedNodeProperties}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Property Name" Binding="{Binding PropertyName}" Width="220"/>
-                                <DataGridCheckBoxColumn Header="Is Mismatch?" Binding="{Binding IsMismatch}" Width="110"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
+                    <!-- Dynamic TabControl for Comparison + One Tab Per Environment -->
+                    <TabControl Grid.Row="1" ItemsSource="{Binding EnvDetailTabs}" Background="Transparent" BorderThickness="0">
+                        <TabControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Header}" Foreground="#38BDF8" FontWeight="Bold" FontSize="12" Margin="4,2"/>
+                            </DataTemplate>
+                        </TabControl.ItemTemplate>
+                        <TabControl.ContentTemplate>
+                            <DataTemplate>
+                                <Border Background="#0F172A" CornerRadius="6" Padding="10" Margin="0,6,0,0">
+                                    <DataGrid ItemsSource="{Binding Properties}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Property / Environment" Binding="{Binding Key}" Width="240"/>
+                                            <DataGridTextColumn Header="Value / Details" Binding="{Binding Value}" Width="*"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                            </DataTemplate>
+                        </TabControl.ContentTemplate>
+                    </TabControl>
                 </Grid>
             </Border>
         </Grid>
