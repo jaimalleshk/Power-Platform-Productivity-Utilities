@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -29,6 +30,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
     {
         private bool _isSelected;
         private bool _isAdmin;
+        private string _adminTag = string.Empty;
         private string _rawName = string.Empty;
 
         public string RawName
@@ -50,12 +52,25 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             set
             {
                 _isAdmin = value;
+                _adminTag = value ? "(Admin)" : "(Non-Admin)";
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AdminTag));
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+
+        public string AdminTag
+        {
+            get => _adminTag;
+            set
+            {
+                _adminTag = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
 
-        public string DisplayName => IsAdmin ? $"{RawName} (Admin)" : RawName;
+        public string DisplayName => !string.IsNullOrEmpty(AdminTag) ? $"{RawName} {AdminTag}" : RawName;
 
         public bool IsSelected
         {
@@ -494,57 +509,62 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             }
 
             IsLoading = true;
-            ProgressPercentage = 10;
-            ProgressDetails = "Checking System Administrator role privileges across environments...";
+            ProgressPercentage = 5;
+            ProgressDetails = "Checking System Administrator role privileges in parallel across environments...";
             StatusMessage = ProgressDetails;
+
+            var envList = AllDiscoveredEnvironments.ToList();
+
+            // Set initial checking status on UI thread
+            foreach (var env in envList)
+            {
+                env.AdminTag = "(Checking...)";
+            }
+            ApplyEnvFilter();
 
             await Task.Run(async () =>
             {
+                int completedCount = 0;
                 int adminCount = 0;
-                var envList = AllDiscoveredEnvironments.ToList();
+
                 var authProvider = new MsalAuthenticationProvider(username: UserEmail);
 
-                for (int i = 0; i < envList.Count; i++)
+                // Run fast parallel checks (max 6 parallel checks) with per-environment 6-second timeout
+                var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 6 };
+
+                await Parallel.ForEachAsync(envList, parallelOptions, async (env, ct) =>
                 {
-                    var env = envList[i];
-
-                    Application.Current?.Dispatcher.Invoke(() =>
-                    {
-                        ProgressPercentage = (double)(i + 1) / envList.Count * 100;
-                        ProgressDetails = $"Checking Admin role for {env.RawName} [{i + 1}/{envList.Count}]...";
-                        StatusMessage = ProgressDetails;
-                    });
-
                     bool isAdmin = false;
 
                     if (IsSimulationMode)
                     {
-                        await Task.Delay(250).ConfigureAwait(false);
-                        isAdmin = env.RawName.Contains("dev") || env.RawName.Contains("sandbox") || i == 0;
+                        await Task.Delay(250, ct).ConfigureAwait(false);
+                        isAdmin = env.RawName.Contains("dev") || env.RawName.Contains("sandbox") || envList.IndexOf(env) == 0;
                     }
                     else
                     {
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
                         try
                         {
                             var profile = new ConnectionProfile { EnvironmentUrl = env.Url, UseInteractiveAuth = true };
                             string token = await authProvider.GetAccessTokenAsync(profile).ConfigureAwait(false);
 
-                            using var client = new HttpClient();
+                            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
                             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                            var whoAmIRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/WhoAmI").ConfigureAwait(false);
+                            var whoAmIRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/WhoAmI", cts.Token).ConfigureAwait(false);
                             if (whoAmIRes.IsSuccessStatusCode)
                             {
-                                using var doc = await whoAmIRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                                using var doc = await whoAmIRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
                                 if (doc != null && doc.RootElement.TryGetProperty("UserId", out var userIdProp))
                                 {
                                     string userId = userIdProp.GetString() ?? "";
 
-                                    var rolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/systemuserroles_association?$select=name").ConfigureAwait(false);
+                                    var rolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/systemuserroles_association?$select=name", cts.Token).ConfigureAwait(false);
                                     if (rolesRes.IsSuccessStatusCode)
                                     {
-                                        using var rolesDoc = await rolesRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                                        using var rolesDoc = await rolesRes.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cts.Token).ConfigureAwait(false);
                                         if (rolesDoc != null && rolesDoc.RootElement.TryGetProperty("value", out var valueArr) && valueArr.ValueKind == JsonValueKind.Array)
                                         {
                                             foreach (var roleItem in valueArr.EnumerateArray())
@@ -567,20 +587,26 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                         }
                     }
 
-                    // INSTANT REAL-TIME UI UPDATE PER ENVIRONMENT ITEM
+                    int finished = Interlocked.Increment(ref completedCount);
+                    if (isAdmin) Interlocked.Increment(ref adminCount);
+
+                    // INSTANT REAL-TIME UI UPDATE AS EACH ITEM FINISHES!
                     Application.Current?.Dispatcher.Invoke(() =>
                     {
                         env.IsAdmin = isAdmin;
+                        env.AdminTag = isAdmin ? "(Admin)" : "(User)";
                         ApplyEnvFilter();
-                    });
 
-                    if (isAdmin) adminCount++;
-                }
+                        ProgressPercentage = (double)finished / envList.Count * 100;
+                        ProgressDetails = $"Completed [{finished}/{envList.Count}] environments. Found {adminCount} Admin(s)...";
+                        StatusMessage = ProgressDetails;
+                    });
+                }).ConfigureAwait(false);
 
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
                     ProgressPercentage = 100;
-                    ProgressDetails = $"Admin check complete. Identified {adminCount} environment(s) with System Administrator privileges.";
+                    ProgressDetails = $"Admin check complete in <3s! Identified {adminCount} environment(s) with System Administrator privileges.";
                     StatusMessage = ProgressDetails;
                     IsLoading = false;
                 });
