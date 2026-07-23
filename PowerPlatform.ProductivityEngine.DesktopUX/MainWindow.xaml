@@ -79,14 +79,17 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </TabItem>
-                    <TabItem Header="📁 Root 2: Metadata &amp; Customizations" Foreground="#38BDF8" FontSize="14" FontWeight="Bold">
-                        <DataGrid ItemsSource="{Binding MetadataTree}" SelectedItem="{Binding SelectedNode}" AutoGenerateColumns="False" IsReadOnly="True" Background="#0F172A" Foreground="#F8FAFC" RowBackground="#1E293B" AlternatingRowBackground="#0F172A" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#334155">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Category" Binding="{Binding SubCategory}" Width="140"/>
-                                <DataGridTextColumn Header="Component Name" Binding="{Binding DisplayName}" Width="220"/>
-                                <DataGridTextColumn Header="Diff Status" Binding="{Binding Status}" Width="100"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                    <TabItem Header="📁 Root 2: Solution Explorer (Forms, Views, Plugins, Flows)" Foreground="#38BDF8" FontSize="14" FontWeight="Bold">
+                        <TreeView ItemsSource="{Binding MetadataTree}" Background="#0F172A" Foreground="#F8FAFC" BorderThickness="0" Margin="4">
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                    <StackPanel Orientation="Horizontal" Margin="2">
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="#F8FAFC" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                                        <TextBlock Text="{Binding Status}" Foreground="#38BDF8" FontSize="11" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
                     </TabItem>
                 </TabControl>
             </Border>
