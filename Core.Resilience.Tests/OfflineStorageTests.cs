@@ -141,5 +141,23 @@ namespace Core.Resilience.Tests
                 }
             }
         }
+
+        [Fact]
+        public void TextDiffEngine_FormatsJavaScriptWithSyntaxHighlightingAndColors()
+        {
+            // Arrange
+            var diffEngine = new TextDiffEngine();
+            string oldJs = "function onSave(executionContext) {\n    var accountName = 'Contoso Dev';\n}";
+            string newJs = "function onSave(executionContext) {\n    const accountName = 'Contoso Prod';\n    console.log('Saved');\n}";
+
+            // Act
+            string htmlDiff = diffEngine.GenerateHtmlColorDiffView(oldJs, newJs, "js");
+
+            // Assert
+            Assert.Contains("function", htmlDiff);
+            Assert.Contains("569cd6", htmlDiff); // JS Keyword Blue Color
+            Assert.Contains("Contoso Prod", htmlDiff);
+            Assert.Contains("rgba(34, 197, 94", htmlDiff); // Added Line Green Highlight
+        }
     }
 }

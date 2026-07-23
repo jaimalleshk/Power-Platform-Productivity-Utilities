@@ -1,60 +1,132 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Utilities.EnvironmentComparator.Engine
 {
-    public enum LineDiffType
+    public class DiffLine
     {
-        Unchanged,
-        Modified,
-        Added,
-        Deleted
+        public int LineNumberOld { get; set; }
+        public int LineNumberNew { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public DiffLineType Type { get; set; }
     }
 
-    public class LineDiffItem
+    public enum DiffLineType
     {
-        public int LineNumberA { get; set; }
-        public int LineNumberB { get; set; }
-        public string ContentA { get; set; } = string.Empty;
-        public string ContentB { get; set; } = string.Empty;
-        public LineDiffType Type { get; set; } = LineDiffType.Unchanged;
+        Unchanged,
+        Added,
+        Deleted,
+        Modified
     }
 
     public class TextDiffEngine
     {
-        public List<LineDiffItem> CompareText(string textA, string textB)
+        public List<DiffLine> ComputeDiff(string text1, string text2)
         {
-            var linesA = (textA ?? string.Empty).Replace("\r\n", "\n").Split('\n');
-            var linesB = (textB ?? string.Empty).Replace("\r\n", "\n").Split('\n');
+            var lines1 = (text1 ?? "").Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            var lines2 = (text2 ?? "").Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 
-            var result = new List<LineDiffItem>();
-            int maxLen = Math.Max(linesA.Length, linesB.Length);
+            var diffResult = new List<DiffLine>();
+            int max = Math.Max(lines1.Length, lines2.Length);
 
-            for (int i = 0; i < maxLen; i++)
+            for (int i = 0; i < max; i++)
             {
-                string lineA = i < linesA.Length ? linesA[i] : string.Empty;
-                string lineB = i < linesB.Length ? linesB[i] : string.Empty;
+                string? l1 = i < lines1.Length ? lines1[i] : null;
+                string? l2 = i < lines2.Length ? lines2[i] : null;
 
-                if (i >= linesA.Length)
+                if (l1 != null && l2 != null)
                 {
-                    result.Add(new LineDiffItem { LineNumberA = 0, LineNumberB = i + 1, ContentA = "", ContentB = lineB, Type = LineDiffType.Added });
+                    if (string.Equals(l1, l2, StringComparison.Ordinal))
+                    {
+                        diffResult.Add(new DiffLine { LineNumberOld = i + 1, LineNumberNew = i + 1, Content = l1, Type = DiffLineType.Unchanged });
+                    }
+                    else
+                    {
+                        diffResult.Add(new DiffLine { LineNumberOld = i + 1, LineNumberNew = i + 1, Content = l2, Type = DiffLineType.Modified });
+                    }
                 }
-                else if (i >= linesB.Length)
+                else if (l1 == null && l2 != null)
                 {
-                    result.Add(new LineDiffItem { LineNumberA = i + 1, LineNumberB = 0, ContentA = lineA, ContentB = "", Type = LineDiffType.Deleted });
+                    diffResult.Add(new DiffLine { LineNumberOld = 0, LineNumberNew = i + 1, Content = l2, Type = DiffLineType.Added });
                 }
-                else if (string.Equals(lineA, lineB, StringComparison.Ordinal))
+                else if (l1 != null && l2 == null)
                 {
-                    result.Add(new LineDiffItem { LineNumberA = i + 1, LineNumberB = i + 1, ContentA = lineA, ContentB = lineB, Type = LineDiffType.Unchanged });
-                }
-                else
-                {
-                    result.Add(new LineDiffItem { LineNumberA = i + 1, LineNumberB = i + 1, ContentA = lineA, ContentB = lineB, Type = LineDiffType.Modified });
+                    diffResult.Add(new DiffLine { LineNumberOld = i + 1, LineNumberNew = 0, Content = l1, Type = DiffLineType.Deleted });
                 }
             }
 
-            return result;
+            return diffResult;
+        }
+
+        public string GenerateHtmlColorDiffView(string oldText, string newText, string fileType = "js")
+        {
+            var diffLines = ComputeDiff(oldText, newText);
+            var sb = new StringBuilder();
+
+            sb.AppendLine(@"<div class=""code-diff-container"" style=""font-family: 'Consolas', 'Fira Code', monospace; font-size: 13px; background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 12px; overflow-x: auto;"">");
+            sb.AppendLine(@"<table style=""width: 100%; border-collapse: collapse;"">");
+
+            foreach (var line in diffLines)
+            {
+                string rowBg = line.Type switch
+                {
+                    DiffLineType.Added => "rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e;",
+                    DiffLineType.Deleted => "rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444;",
+                    DiffLineType.Modified => "rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b;",
+                    _ => "transparent;"
+                };
+
+                string typeBadge = line.Type switch
+                {
+                    DiffLineType.Added => "<span style=\"color: #4ade80; font-weight: bold;\">+</span>",
+                    DiffLineType.Deleted => "<span style=\"color: #f87171; font-weight: bold;\">-</span>",
+                    DiffLineType.Modified => "<span style=\"color: #fbbf24; font-weight: bold;\">~</span>",
+                    _ => "&nbsp;"
+                };
+
+                string formattedContent = fileType.ToLowerInvariant() switch
+                {
+                    "js" or "javascript" => FormatJavaScriptSyntax(line.Content),
+                    _ => System.Net.WebUtility.HtmlEncode(line.Content)
+                };
+
+                sb.AppendLine($"<tr style=\"background: {rowBg}\">");
+                sb.AppendLine($"<td style=\"width: 40px; color: #64748b; text-align: right; padding-right: 8px; user-select: none;\">{line.LineNumberOld}</td>");
+                sb.AppendLine($"<td style=\"width: 40px; color: #64748b; text-align: right; padding-right: 8px; user-select: none;\">{line.LineNumberNew}</td>");
+                sb.AppendLine($"<td style=\"width: 20px; text-align: center;\">{typeBadge}</td>");
+                sb.AppendLine($"<td style=\"white-space: pre-wrap; font-family: inherit;\">{formattedContent}</td>");
+                sb.AppendLine("</tr>");
+            }
+
+            sb.AppendLine("</table></div>");
+            return sb.ToString();
+        }
+
+        public string FormatJavaScriptSyntax(string codeLine)
+        {
+            if (string.IsNullOrEmpty(codeLine)) return "";
+
+            string encoded = System.Net.WebUtility.HtmlEncode(codeLine);
+
+            // Highlight JS Comments
+            if (encoded.TrimStart().StartsWith("//"))
+            {
+                return $"<span style=\"color: #6a9955; font-style: italic;\">{encoded}</span>";
+            }
+
+            // Highlight JS Keywords
+            string keywordsPattern = @"\b(function|var|let|const|return|if|else|switch|case|break|for|while|try|catch|async|await|new|this)\b";
+            encoded = Regex.Replace(encoded, keywordsPattern, "<span style=\"color: #569cd6; font-weight: bold;\">$1</span>");
+
+            // Highlight Strings
+            encoded = Regex.Replace(encoded, "(&quot;.*?&quot;|'.*?')", "<span style=\"color: #ce9178;\">$1</span>");
+
+            // Highlight Numbers
+            encoded = Regex.Replace(encoded, @"\b(\d+)\b", "<span style=\"color: #b5cea8;\">$1</span>");
+
+            return encoded;
         }
     }
 }
