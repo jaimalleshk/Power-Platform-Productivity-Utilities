@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:PowerPlatform.ProductivityEngine.DesktopUX.ViewModels"
         Title="Power Platform Productivity Engine Suite (.NET 9)" Height="920" Width="1420"
-        Icon="Resources/app_logo.ico"
+        Icon="Resources/app_logo.png"
         Background="#0F172A" Foreground="#F8FAFC" WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
