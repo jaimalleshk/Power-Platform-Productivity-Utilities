@@ -12,16 +12,28 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 {
     public class MsalAuthenticationProvider : IAuthenticationProvider
     {
-        // Cache for access tokens retrieved via connection strings to avoid recreating ServiceClient repeatedly
         private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)> TokenCache = 
             new ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)>();
 
+        private static (string Token, DateTimeOffset ExpiresOn)? SharedSsoToken;
+
         private static readonly SemaphoreSlim AuthSemaphore = new SemaphoreSlim(1, 1);
+
+        public void SetSharedSsoToken(string token, DateTimeOffset expiresOn)
+        {
+            SharedSsoToken = (token, expiresOn);
+        }
 
         public async Task<string> GetAccessTokenAsync(ConnectionProfile profile)
         {
             if (profile == null)
                 throw new ArgumentNullException(nameof(profile));
+
+            // Check if Single Sign-On (SSO) shared token is active and valid
+            if (SharedSsoToken.HasValue && SharedSsoToken.Value.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(2))
+            {
+                return SharedSsoToken.Value.Token;
+            }
 
             string resourceUrl = profile.EnvironmentUrl.TrimEnd('/');
             string scope = $"{resourceUrl}/.default";
@@ -59,71 +71,25 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                         }
                     }
                 }
-                // 2. Interactive Auth Flow using Azure.Identity.InteractiveBrowserCredential (as requested by user)
-                else if (profile.UseInteractiveAuth && 
-                         string.IsNullOrWhiteSpace(profile.ClientSecret) && 
-                         string.IsNullOrWhiteSpace(profile.ClientCertificateThumbprint) && 
-                         string.IsNullOrWhiteSpace(profile.Username))
-                {
-                    var options = new InteractiveBrowserCredentialOptions
-                    {
-                        ClientId = !string.IsNullOrWhiteSpace(profile.ClientId) ? profile.ClientId : "51f81489-12ee-4a9e-aaae-a2591f45987d",
-                        RedirectUri = !string.IsNullOrWhiteSpace(profile.RedirectUri) ? new Uri(profile.RedirectUri) : new Uri("http://localhost")
-                    };
-
-
-                    var credential = new InteractiveBrowserCredential(options);
-                    var tokenRequestContext = new TokenRequestContext(new[] { scope });
-                    var tokenResult = await credential.GetTokenAsync(tokenRequestContext).ConfigureAwait(false);
-                    token = tokenResult.Token;
-                }
-                // 3. Fallback: Build standard connection string and let ServiceClient resolve it
+                // 2. Interactive / DefaultAzureCredential single login
                 else
                 {
-                    string connStr = $"Url={resourceUrl};";
+                    var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                    {
+                        ExcludeInteractiveBrowserCredential = false
+                    });
 
-                    if (!string.IsNullOrWhiteSpace(profile.ClientId))
-                    {
-                        connStr += $"ClientId={profile.ClientId};";
-                    }
-                    if (!string.IsNullOrWhiteSpace(profile.RedirectUri))
-                    {
-                        connStr += $"RedirectUri={profile.RedirectUri};";
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(profile.ClientSecret))
-                    {
-                        connStr += $"AuthType=ClientSecret;ClientSecret={profile.ClientSecret};";
-                    }
-                    else if (!string.IsNullOrWhiteSpace(profile.ClientCertificateThumbprint))
-                    {
-                        connStr += $"AuthType=Certificate;Thumbprint={profile.ClientCertificateThumbprint};";
-                    }
-                    else if (!string.IsNullOrWhiteSpace(profile.Username) && !string.IsNullOrWhiteSpace(profile.Password))
-                    {
-                        connStr += $"AuthType=Office365;Username={profile.Username};Password={profile.Password};";
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("No valid authentication credentials were provided in the connection profile.");
-                    }
-
-                    using (var serviceClient = new ServiceClient(connStr))
-                    {
-                        if (!serviceClient.IsReady)
-                        {
-                            throw new InvalidOperationException($"Failed to connect using connection string: {serviceClient.LastError}", serviceClient.LastException);
-                        }
-
-                        token = serviceClient.CurrentAccessToken;
-                        if (string.IsNullOrEmpty(token))
-                        {
-                            throw new InvalidOperationException("Failed to retrieve access token from the authenticated ServiceClient.");
-                        }
-                    }
+                    var tokenContext = new TokenRequestContext(new[] { scope });
+                    var accessToken = await credential.GetTokenAsync(tokenContext).ConfigureAwait(false);
+                    token = accessToken.Token;
                 }
 
-                TokenCache[cacheKey] = (token, DateTimeOffset.UtcNow.AddHours(1));
+                var expires = DateTimeOffset.UtcNow.AddHours(1);
+                TokenCache[cacheKey] = (token, expires);
+
+                // Set as shared SSO token for single-login across all environments and Power Platform APIs
+                SharedSsoToken = (token, expires);
+
                 return token;
             }
             finally
@@ -134,7 +100,14 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
         public void ClearTokenCache(string environmentUrl)
         {
-            var keysToRemove = TokenCache.Keys.Where(k => k.Contains(environmentUrl)).ToList();
+            if (string.IsNullOrWhiteSpace(environmentUrl))
+            {
+                TokenCache.Clear();
+                SharedSsoToken = null;
+                return;
+            }
+
+            var keysToRemove = TokenCache.Keys.Where(k => k.StartsWith(environmentUrl, StringComparison.OrdinalIgnoreCase)).ToList();
             foreach (var key in keysToRemove)
             {
                 TokenCache.TryRemove(key, out _);
