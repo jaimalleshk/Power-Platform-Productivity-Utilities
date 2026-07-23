@@ -10,49 +10,56 @@ namespace Utilities.EnvironmentComparator.Storage
     public class ExcelReportGenerator
     {
         /// <summary>
-        /// Generates a formatted Excel XML Spreadsheet 2003 / XLSX-compatible report from comparison results.
-        /// Includes color status formatting, bold headers, and auto-adjusted table columns.
+        /// Generates a formatted multi-worksheet Excel Spreadsheet 2003 / XLSX-compatible workbook.
+        /// Supports dozens of dedicated worksheets based on selected component categories and entity tables.
         /// </summary>
         public void ExportFormattedExcelXml(string path, ComparisonResult result)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentNullException(nameof(path));
             if (result == null) throw new ArgumentNullException(nameof(result));
 
-            string xml = GenerateExcelXmlContent(result);
+            string xml = GenerateExcelMultiWorksheetXml(result);
             File.WriteAllText(path, xml, Encoding.UTF8);
         }
 
-        private string GenerateExcelXmlContent(ComparisonResult result)
+        private string GenerateExcelMultiWorksheetXml(ComparisonResult result)
         {
             var envs = result.TargetEnvironmentNames;
             var envHeaderCells = string.Join("", envs.Select(e => $"<Cell ss:StyleID=\"HeaderStyle\"><Data ss:Type=\"String\">{EscapeXml(e)}</Data></Cell>"));
 
-            var sbAdminRows = new StringBuilder();
-            foreach (var node in result.AdminSettingsNodes)
+            var sbWorksheets = new StringBuilder();
+
+            // 1. Sheet 1: Executive Summary
+            sbWorksheets.AppendLine(GenerateExecutiveSummarySheet(result, envs));
+
+            // 2. Sheet 2: Admin & OrgDbOrgSettings
+            if (result.AdminSettingsNodes.Count > 0)
             {
-                string statusStyle = node.Status switch
-                {
-                    DiffStatus.Identical => "StatusIdentical",
-                    DiffStatus.Delta => "StatusDelta",
-                    _ => "StatusUnique"
-                };
-
-                string envValueCells = string.Join("", envs.Select(e => {
-                    string val = node.EnvironmentValues.TryGetValue(e, out var v) ? v : "Missing";
-                    return $"<Cell ss:StyleID=\"DataStyle\"><Data ss:Type=\"String\">{EscapeXml(val)}</Data></Cell>";
-                }));
-
-                sbAdminRows.AppendLine($@"
-                    <Row>
-                        <Cell ss:StyleID=""SubCatStyle""><Data ss:Type=""String"">{EscapeXml(node.SubCategory)}</Data></Cell>
-                        <Cell ss:StyleID=""BoldDataStyle""><Data ss:Type=""String"">{EscapeXml(node.DisplayName)}</Data></Cell>
-                        <Cell ss:StyleID=""{statusStyle}""><Data ss:Type=""String"">{node.Status}</Data></Cell>
-                        {envValueCells}
-                    </Row>");
+                sbWorksheets.AppendLine(GenerateCategoryWorksheet("Admin Settings", result.AdminSettingsNodes, envs, envHeaderCells));
             }
 
-            var sbMetadataRows = new StringBuilder();
-            WriteNodeRowsRecursive(result.MetadataNodes, envs, sbMetadataRows, 0);
+            // 3. Flatten Metadata Nodes by Solution Explorer Folders/Categories
+            var topFolders = result.MetadataNodes;
+
+            foreach (var topFolder in topFolders)
+            {
+                if (topFolder.Children == null || topFolder.Children.Count == 0) continue;
+
+                if (topFolder.UniqueKey.Equals("Folder.Entities", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Generate a dedicated worksheet per Entity / Table! (e.g. Table - Account, Table - Contact)
+                    foreach (var entityNode in topFolder.Children)
+                    {
+                        string sheetName = SanitizeWorksheetName(entityNode.DisplayName.Replace("📁 Table: ", "Table - "));
+                        sbWorksheets.AppendLine(GenerateCategoryWorksheet(sheetName, entityNode.Children, envs, envHeaderCells));
+                    }
+                }
+                else
+                {
+                    string sheetName = SanitizeWorksheetName(topFolder.DisplayName.Replace("📁 ", "").Replace("🤖 ", "").Replace("🔗 ", "").Replace("🔐 ", ""));
+                    sbWorksheets.AppendLine(GenerateCategoryWorksheet(sheetName, topFolder.Children, envs, envHeaderCells));
+                }
+            }
 
             return $@"<?xml version=""1.0""?>
 <?mso-application progid=""Excel.Sheet""?>
@@ -102,11 +109,17 @@ namespace Utilities.EnvironmentComparator.Storage
   </Style>
  </Styles>
 
- <Worksheet ss:Name=""Executive Summary"">
+{sbWorksheets}
+</Workbook>";
+        }
+
+        private string GenerateExecutiveSummarySheet(ComparisonResult result, List<string> envs)
+        {
+            return $@" <Worksheet ss:Name=""Executive Summary"">
   <Table>
-   <Column ss:Width=""180""/>
+   <Column ss:Width=""220""/>
    <Column ss:Width=""250""/>
-   <Row><Cell ss:StyleID=""TitleStyle""><Data ss:Type=""String"">Power Platform N-Way Environment Comparison Report</Data></Cell></Row>
+   <Row><Cell ss:StyleID=""TitleStyle""><Data ss:Type=""String"">Power Platform N-Way Environment Comparison Master Report</Data></Cell></Row>
    <Row><Cell><Data ss:Type=""String"">Generated Date (UTC):</Data></Cell><Cell ss:StyleID=""BoldDataStyle""><Data ss:Type=""String"">{result.ComparedAt:yyyy-MM-dd HH:mm:ss}</Data></Cell></Row>
    <Row><Cell><Data ss:Type=""String"">Target Environments:</Data></Cell><Cell ss:StyleID=""BoldDataStyle""><Data ss:Type=""String"">{string.Join(", ", envs)}</Data></Cell></Row>
    <Row></Row>
@@ -116,40 +129,29 @@ namespace Utilities.EnvironmentComparator.Storage
    <Row><Cell ss:StyleID=""StatusDelta""><Data ss:Type=""String"">Delta Components ⚠️</Data></Cell><Cell ss:StyleID=""StatusDelta""><Data ss:Type=""Number"">{result.DeltaCount}</Data></Cell></Row>
    <Row><Cell ss:StyleID=""StatusUnique""><Data ss:Type=""String"">Unique Components 🔷</Data></Cell><Cell ss:StyleID=""StatusUnique""><Data ss:Type=""Number"">{result.UniqueCount}</Data></Cell></Row>
   </Table>
- </Worksheet>
+ </Worksheet>";
+        }
 
- <Worksheet ss:Name=""Root 1 - Admin Settings"">
-  <Table>
-   <Column ss:Width=""160""/>
-   <Column ss:Width=""240""/>
-   <Column ss:Width=""110""/>
-   {string.Join("", envs.Select(_ => "<Column ss:Width=\"220\"/>"))}
-   <Row>
-    <Cell ss:StyleID=""HeaderStyle""><Data ss:Type=""String"">Category</Data></Cell>
-    <Cell ss:StyleID=""HeaderStyle""><Data ss:Type=""String"">Setting Name</Data></Cell>
-    <Cell ss:StyleID=""HeaderStyle""><Data ss:Type=""String"">Status</Data></Cell>
-    {envHeaderCells}
-   </Row>
-   {sbAdminRows}
-  </Table>
- </Worksheet>
+        private string GenerateCategoryWorksheet(string sheetName, IEnumerable<DiffNode> nodes, List<string> envs, string envHeaderCells)
+        {
+            var sbRows = new StringBuilder();
+            WriteNodeRowsRecursive(nodes, envs, sbRows, 0);
 
- <Worksheet ss:Name=""Root 2 - Solution Explorer"">
+            return $@" <Worksheet ss:Name=""{EscapeXml(sheetName)}"">
   <Table>
    <Column ss:Width=""160""/>
    <Column ss:Width=""280""/>
    <Column ss:Width=""110""/>
-   {string.Join("", envs.Select(_ => "<Column ss:Width=\"220\"/>"))}
+   {string.Join("", envs.Select(_ => "<Column ss:Width=\"240\"/>"))}
    <Row>
     <Cell ss:StyleID=""HeaderStyle""><Data ss:Type=""String"">Category</Data></Cell>
     <Cell ss:StyleID=""HeaderStyle""><Data ss:Type=""String"">Component Name</Data></Cell>
     <Cell ss:StyleID=""HeaderStyle""><Data ss:Type=""String"">Status</Data></Cell>
     {envHeaderCells}
    </Row>
-   {sbMetadataRows}
+   {sbRows}
   </Table>
- </Worksheet>
-</Workbook>";
+ </Worksheet>";
         }
 
         private void WriteNodeRowsRecursive(IEnumerable<DiffNode> nodes, List<string> envs, StringBuilder sb, int depth)
@@ -182,6 +184,13 @@ namespace Utilities.EnvironmentComparator.Storage
                     WriteNodeRowsRecursive(node.Children, envs, sb, depth + 1);
                 }
             }
+        }
+
+        private static string SanitizeWorksheetName(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return "Category";
+            string name = input.Replace(":", "-").Replace("\\", "").Replace("/", "").Replace("?", "").Replace("*", "").Replace("[", "").Replace("]", "");
+            return name.Length > 31 ? name.Substring(0, 31) : name;
         }
 
         private static string EscapeXml(string input)
