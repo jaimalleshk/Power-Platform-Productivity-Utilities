@@ -27,8 +27,9 @@
                     <CheckBox Content="Simulation Mode (Offline Demo)" IsChecked="{Binding IsSimulationMode}" Foreground="#94A3B8" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button Content="📊 Export HTML Dashboard" Command="{Binding ExportHtmlCommand}" Background="#166534" Foreground="White" Padding="10,6" Margin="0,0,8,0" BorderThickness="0"/>
-                    <Button Content="📄 Export Excel / CSV Matrix" Command="{Binding ExportCsvCommand}" Background="#1E3A8A" Foreground="White" Padding="10,6" BorderThickness="0"/>
+                    <Button Content="📊 Export HTML Dashboard" Command="{Binding ExportHtmlCommand}" Background="#166534" Foreground="White" Padding="10,6" Margin="0,0,6,0" BorderThickness="0"/>
+                    <Button Content="📗 Export Formatted Excel" Command="{Binding ExportExcelCommand}" Background="#0D9488" Foreground="White" FontWeight="Bold" Padding="10,6" Margin="0,0,6,0" BorderThickness="0"/>
+                    <Button Content="🗄️ Save Offline SQLite" Command="{Binding SaveToSqliteCommand}" Background="#4338CA" Foreground="White" Padding="10,6" BorderThickness="0"/>
                 </StackPanel>
             </DockPanel>
         </Border>

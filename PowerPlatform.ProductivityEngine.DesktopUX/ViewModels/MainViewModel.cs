@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using PowerPlatform.ProductivityEngine.Core.Connections;
 using PowerPlatform.ProductivityEngine.Core.Reporting;
 using Utilities.EnvironmentComparator.Engine;
 using Utilities.EnvironmentComparator.Models;
+using Utilities.EnvironmentComparator.Storage;
 
 namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 {
@@ -80,8 +82,11 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public ICommand CompareEnvironmentsCommand { get; }
         public ICommand ExportHtmlCommand { get; }
         public ICommand ExportCsvCommand { get; }
+        public ICommand ExportExcelCommand { get; }
+        public ICommand SaveToSqliteCommand { get; }
 
         private ComparisonResult? _lastResult;
+        private List<RawEnvData> _lastRawEnvDataList = new();
 
         public MainViewModel()
         {
@@ -89,6 +94,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             CompareEnvironmentsCommand = new RelayCommand(async _ => await CompareEnvironmentsAsync());
             ExportHtmlCommand = new RelayCommand(_ => ExportHtml());
             ExportCsvCommand = new RelayCommand(_ => ExportCsv());
+            ExportExcelCommand = new RelayCommand(_ => ExportExcel());
+            SaveToSqliteCommand = new RelayCommand(_ => SaveToSqlite());
 
             // Initialize default mock environments for quick discovery
             DiscoveredEnvironments.Add(new SelectableEnv { Name = "contoso-dev", Url = "https://contoso-dev.crm.dynamics.com", IsSelected = true });
@@ -133,7 +140,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             Scope.TargetEnvironments = profiles;
 
             var crawler = new EnvironmentMetadataCrawler(useSimulationMode: IsSimulationMode);
-            var envDataList = new List<RawEnvData>();
+            _lastRawEnvDataList.Clear();
 
             var progress = new Progress<ProgressUpdate>(p => {
                 StatusMessage = $"[{p.Stage}] {p.Message}";
@@ -142,11 +149,11 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             foreach (var profile in profiles)
             {
                 var data = await crawler.CrawlEnvironmentAsync(profile, Scope, progress);
-                envDataList.Add(data);
+                _lastRawEnvDataList.Add(data);
             }
 
             var comparer = new NWayComparer();
-            _lastResult = comparer.CompareEnvironments(envDataList, Scope);
+            _lastResult = comparer.CompareEnvironments(_lastRawEnvDataList, Scope);
 
             foreach (var n in _lastResult.AdminSettingsNodes) AdminSettingsTree.Add(n);
             foreach (var n in _lastResult.MetadataNodes) MetadataTree.Add(n);
@@ -159,32 +166,54 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             StatusMessage = $"Comparison complete. Found {_lastResult.DeltaCount} Deltas, {_lastResult.UniqueCount} Unique items across {selectedEnvs.Count} environments.";
         }
 
+        private void UpdateSelectedNodeProperties()
+        {
+            SelectedNodeProperties.Clear();
+            if (_selectedNode == null || _selectedNode.PropertyDiffs == null) return;
+
+            foreach (var prop in _selectedNode.PropertyDiffs)
+            {
+                SelectedNodeProperties.Add(prop);
+            }
+        }
+
         private void ExportHtml()
         {
-            if (_lastResult == null) { StatusMessage = "No comparison results to export. Run a comparison first."; return; }
-            string path = "environment_comparison_report.html";
+            if (_lastResult == null) return;
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "EnvComparison_Dashboard.html");
             var exporter = new ComparatorExporter();
             exporter.ExportToHtml(path, _lastResult);
-            StatusMessage = $"HTML Diff Dashboard exported to: {System.IO.Path.GetFullPath(path)}";
+            StatusMessage = $"Exported Glassmorphic HTML Dashboard to {path}";
         }
 
         private void ExportCsv()
         {
-            if (_lastResult == null) { StatusMessage = "No comparison results to export. Run a comparison first."; return; }
-            string path = "environment_comparison_report.csv";
+            if (_lastResult == null) return;
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "EnvComparison_Matrix.csv");
             var exporter = new ComparatorExporter();
             exporter.ExportToCsvExcel(path, _lastResult);
-            StatusMessage = $"Excel/CSV Matrix exported to: {System.IO.Path.GetFullPath(path)}";
+            StatusMessage = $"Exported Comparison Matrix CSV to {path}";
         }
 
-        private void UpdateSelectedNodeProperties()
+        private void ExportExcel()
         {
-            SelectedNodeProperties.Clear();
-            if (SelectedNode?.PropertyDiffs != null)
+            if (_lastResult == null) return;
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "EnvComparison_MultiWorksheet.xml");
+            var exporter = new ComparatorExporter();
+            exporter.ExportFormattedExcel(path, _lastResult);
+            StatusMessage = $"Exported Formatted Multi-Worksheet Excel Report to {path}";
+        }
+
+        private void SaveToSqlite()
+        {
+            if (_lastRawEnvDataList.Count == 0) return;
+            string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "env_snapshots.sqlite");
+            var storageEngine = new OfflineStorageEngine();
+            foreach (var envData in _lastRawEnvDataList)
             {
-                foreach (var p in SelectedNode.PropertyDiffs)
-                    SelectedNodeProperties.Add(p);
+                storageEngine.SaveSnapshot(dbPath, envData);
             }
+            StatusMessage = $"Saved {_lastRawEnvDataList.Count} environment snapshots to offline SQLite DB at {dbPath}";
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -199,11 +228,11 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         public RelayCommand(Action<object?> execute, Func<object?, bool>? canExecute = null)
         {
-            _execute = execute;
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
         }
 
-        public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
+        public bool CanExecute(object? parameter) => _canExecute == null || _canExecute(parameter);
         public void Execute(object? parameter) => _execute(parameter);
         public event EventHandler? CanExecuteChanged;
     }
