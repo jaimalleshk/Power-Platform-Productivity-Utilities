@@ -1,0 +1,78 @@
+﻿{
+  "TargetRoles": [
+    "System Administrator",
+    "Environment Maker"
+  ],
+  "EnvironmentsScanned": [
+    "contoso-dev",
+    "contoso-test",
+    "contoso-prod"
+  ],
+  "Matches": [
+    {
+      "EnvironmentUniqueName": "contoso-dev",
+      "EnvironmentUrl": "https://contoso-dev.crm.dynamics.com",
+      "TargetName": "System Administrator",
+      "UserName": "Admin User",
+      "UserEmail": "admin@contoso.com",
+      "IsDisabled": false
+    },
+    {
+      "EnvironmentUniqueName": "contoso-dev",
+      "EnvironmentUrl": "https://contoso-dev.crm.dynamics.com",
+      "TargetName": "System Administrator",
+      "UserName": "Dev Lead",
+      "UserEmail": "devlead@contoso.com",
+      "IsDisabled": false
+    },
+    {
+      "EnvironmentUniqueName": "contoso-dev",
+      "EnvironmentUrl": "https://contoso-dev.crm.dynamics.com",
+      "TargetName": "Environment Maker",
+      "UserName": "Admin User",
+      "UserEmail": "admin@contoso.com",
+      "IsDisabled": false
+    },
+    {
+      "EnvironmentUniqueName": "contoso-dev",
+      "EnvironmentUrl": "https://contoso-dev.crm.dynamics.com",
+      "TargetName": "Environment Maker",
+      "UserName": "Dev Lead",
+      "UserEmail": "devlead@contoso.com",
+      "IsDisabled": false
+    },
+    {
+      "EnvironmentUniqueName": "contoso-test",
+      "EnvironmentUrl": "https://contoso-test.crm.dynamics.com",
+      "TargetName": "System Administrator",
+      "UserName": "Admin User",
+      "UserEmail": "admin@contoso.com",
+      "IsDisabled": false
+    },
+    {
+      "EnvironmentUniqueName": "contoso-test",
+      "EnvironmentUrl": "https://contoso-test.crm.dynamics.com",
+      "TargetName": "Environment Maker",
+      "UserName": "Admin User",
+      "UserEmail": "admin@contoso.com",
+      "IsDisabled": false
+    },
+    {
+      "EnvironmentUniqueName": "contoso-prod",
+      "EnvironmentUrl": "https://contoso-prod.crm.dynamics.com",
+      "TargetName": "System Administrator",
+      "UserName": "Admin User",
+      "UserEmail": "admin@contoso.com",
+      "IsDisabled": false
+    },
+    {
+      "EnvironmentUniqueName": "contoso-prod",
+      "EnvironmentUrl": "https://contoso-prod.crm.dynamics.com",
+      "TargetName": "Environment Maker",
+      "UserName": "Admin User",
+      "UserEmail": "admin@contoso.com",
+      "IsDisabled": false
+    }
+  ],
+  "Timestamp": "2026-06-25T22:54:58.1442707Z"
+}

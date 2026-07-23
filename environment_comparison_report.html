@@ -1,0 +1,187 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Power Platform Environment Comparison Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-warning: #f59e0b;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 24px;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .header h1 { margin: 0 0 8px 0; color: var(--accent-blue); font-size: 24px; }
+        .stats-bar {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 20px;
+            flex: 1;
+        }
+        .stat-value { font-size: 22px; font-weight: bold; margin-top: 4px; }
+        .section-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: var(--accent-blue); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th { background-color: rgba(51, 65, 85, 0.5); color: var(--text-muted); }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-identical { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+        .badge-delta { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+        .badge-unique { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; }
+        .sub-cat { color: var(--text-muted); font-size: 12px; background: #334155; padding: 2px 6px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ Power Platform N-Way Environment Comparison Dashboard</h1>
+        <p style="color: var(--text-muted); margin: 0;">Compared Environments: contoso-dev, contoso-test, contoso-prod | Generated: 2026-07-23 00:14:04 UTC</p>
+        <div class="stats-bar">
+            <div class="stat-card"><div>Total Items</div><div class="stat-value">9</div></div>
+            <div class="stat-card"><div>Identical 🟢</div><div class="stat-value" style="color:#4ade80">2</div></div>
+            <div class="stat-card"><div>Deltas ⚠️</div><div class="stat-value" style="color:#fbbf24">6</div></div>
+            <div class="stat-card"><div>Unique 🔷</div><div class="stat-value" style="color:#38bdf8">1</div></div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">📁 Root 1: Admin &amp; Environment Settings</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Setting Name</th>
+                    <th>Status</th>
+                    <th>contoso-dev</th><th>contoso-test</th><th>contoso-prod</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                    <tr>
+                        <td><span class="sub-cat">OrgDbSettings</span></td>
+                        <td><strong>MaxVerboseLog</strong></td>
+                        <td><span class="badge badge-delta">Delta</span></td>
+                        <td>Verbose</td><td>Warning</td><td>Warning</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="sub-cat">OrgDbSettings</span></td>
+                        <td><strong>SkipRuleCheck</strong></td>
+                        <td><span class="badge badge-identical">Identical</span></td>
+                        <td>True</td><td>True</td><td>True</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="sub-cat">Security</span></td>
+                        <td><strong>MaxSessionTimeout</strong></td>
+                        <td><span class="badge badge-delta">Delta</span></td>
+                        <td>1440 mins</td><td>480 mins</td><td>480 mins</td>
+                    </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">📁 Root 2: Metadata &amp; Customizations</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Component Name</th>
+                    <th>Status</th>
+                    <th>contoso-dev</th><th>contoso-test</th><th>contoso-prod</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                    <tr>
+                        <td><span class="sub-cat">CloudFlow</span></td>
+                        <td><strong>ProcessOrderNotification</strong></td>
+                        <td><span class="badge badge-identical">Identical</span></td>
+                        <td>Started</td><td>Started</td><td>Started</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="sub-cat">EnvVariable</span></td>
+                        <td><strong>new_PaymentApiUrl</strong></td>
+                        <td><span class="badge badge-delta">Delta</span></td>
+                        <td>https://dev.api.payments.com</td><td>https://test.api.payments.com</td><td>https://prod.api.payments.com</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="sub-cat">PluginAssembly</span></td>
+                        <td><strong>AccountPlugin.dll</strong></td>
+                        <td><span class="badge badge-delta">Delta</span></td>
+                        <td>1.2.0.0</td><td>1.2.0.0</td><td>1.1.0.0</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="sub-cat">PluginStep</span></td>
+                        <td><strong>CreateAccount_PostOp</strong></td>
+                        <td><span class="badge badge-delta">Delta</span></td>
+                        <td>Enabled</td><td>Enabled</td><td>Disabled</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="sub-cat">TableColumn</span></td>
+                        <td><strong>account.new_customer_code</strong></td>
+                        <td><span class="badge badge-delta">Delta</span></td>
+                        <td>MaxLength=100</td><td>MaxLength=100</td><td>MaxLength=50</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="sub-cat">TableColumn</span></td>
+                        <td><strong>account.new_loyalty_tier</strong></td>
+                        <td><span class="badge badge-unique">Unique</span></td>
+                        <td>Present</td><td>Missing 🔷</td><td>Missing 🔷</td>
+                    </tr>
+
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

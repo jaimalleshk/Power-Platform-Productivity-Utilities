@@ -1,0 +1,331 @@
+﻿{
+  "TargetEnvironmentNames": [
+    "contoso-dev",
+    "contoso-test",
+    "contoso-prod"
+  ],
+  "ComparedAt": "2026-07-23T00:14:04.301244Z",
+  "AdminSettingsNodes": [
+    {
+      "RootCategory": 0,
+      "SubCategory": "OrgDbSettings",
+      "UniqueKey": "OrgDbSettings.MaxVerboseLog",
+      "DisplayName": "MaxVerboseLog",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "Verbose",
+        "contoso-test": "Warning",
+        "contoso-prod": "Warning"
+      },
+      "Status": 1,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "Value",
+          "ValuesPerEnv": {
+            "contoso-dev": "Verbose",
+            "contoso-test": "Warning",
+            "contoso-prod": "Warning"
+          },
+          "IsMismatch": true
+        }
+      ],
+      "Children": []
+    },
+    {
+      "RootCategory": 0,
+      "SubCategory": "OrgDbSettings",
+      "UniqueKey": "OrgDbSettings.SkipRuleCheck",
+      "DisplayName": "SkipRuleCheck",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "True",
+        "contoso-test": "True",
+        "contoso-prod": "True"
+      },
+      "Status": 0,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "Value",
+          "ValuesPerEnv": {
+            "contoso-dev": "True",
+            "contoso-test": "True",
+            "contoso-prod": "True"
+          },
+          "IsMismatch": false
+        }
+      ],
+      "Children": []
+    },
+    {
+      "RootCategory": 0,
+      "SubCategory": "Security",
+      "UniqueKey": "Security.MaxSessionTimeout",
+      "DisplayName": "MaxSessionTimeout",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "1440 mins",
+        "contoso-test": "480 mins",
+        "contoso-prod": "480 mins"
+      },
+      "Status": 1,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "Value",
+          "ValuesPerEnv": {
+            "contoso-dev": "1440 mins",
+            "contoso-test": "480 mins",
+            "contoso-prod": "480 mins"
+          },
+          "IsMismatch": true
+        }
+      ],
+      "Children": []
+    }
+  ],
+  "MetadataNodes": [
+    {
+      "RootCategory": 1,
+      "SubCategory": "CloudFlow",
+      "UniqueKey": "CloudFlow.ProcessOrderNotification",
+      "DisplayName": "ProcessOrderNotification",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "Started",
+        "contoso-test": "Started",
+        "contoso-prod": "Started"
+      },
+      "Status": 0,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "Category",
+          "ValuesPerEnv": {
+            "contoso-dev": "Modern Cloud Flow",
+            "contoso-test": "Modern Cloud Flow",
+            "contoso-prod": "Modern Cloud Flow"
+          },
+          "IsMismatch": false
+        },
+        {
+          "PropertyName": "Status",
+          "ValuesPerEnv": {
+            "contoso-dev": "Started",
+            "contoso-test": "Started",
+            "contoso-prod": "Started"
+          },
+          "IsMismatch": false
+        }
+      ],
+      "Children": []
+    },
+    {
+      "RootCategory": 1,
+      "SubCategory": "EnvVariable",
+      "UniqueKey": "EnvVariable.new_PaymentApiUrl",
+      "DisplayName": "new_PaymentApiUrl",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "https://dev.api.payments.com",
+        "contoso-test": "https://test.api.payments.com",
+        "contoso-prod": "https://prod.api.payments.com"
+      },
+      "Status": 1,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "Type",
+          "ValuesPerEnv": {
+            "contoso-dev": "String",
+            "contoso-test": "String",
+            "contoso-prod": "String"
+          },
+          "IsMismatch": false
+        },
+        {
+          "PropertyName": "Value",
+          "ValuesPerEnv": {
+            "contoso-dev": "https://dev.api.payments.com",
+            "contoso-test": "https://test.api.payments.com",
+            "contoso-prod": "https://prod.api.payments.com"
+          },
+          "IsMismatch": true
+        }
+      ],
+      "Children": []
+    },
+    {
+      "RootCategory": 1,
+      "SubCategory": "PluginAssembly",
+      "UniqueKey": "PluginAssembly.AccountPlugin.dll",
+      "DisplayName": "AccountPlugin.dll",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "1.2.0.0",
+        "contoso-test": "1.2.0.0",
+        "contoso-prod": "1.1.0.0"
+      },
+      "Status": 1,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "IsolationMode",
+          "ValuesPerEnv": {
+            "contoso-dev": "Sandbox",
+            "contoso-test": "Sandbox",
+            "contoso-prod": "Sandbox"
+          },
+          "IsMismatch": false
+        },
+        {
+          "PropertyName": "PublicKeyToken",
+          "ValuesPerEnv": {
+            "contoso-dev": "31bf3856ad364e35",
+            "contoso-test": "31bf3856ad364e35",
+            "contoso-prod": "31bf3856ad364e35"
+          },
+          "IsMismatch": false
+        },
+        {
+          "PropertyName": "Version",
+          "ValuesPerEnv": {
+            "contoso-dev": "1.2.0.0",
+            "contoso-test": "1.2.0.0",
+            "contoso-prod": "1.1.0.0"
+          },
+          "IsMismatch": true
+        }
+      ],
+      "Children": []
+    },
+    {
+      "RootCategory": 1,
+      "SubCategory": "PluginStep",
+      "UniqueKey": "PluginStep.CreateAccount_PostOp",
+      "DisplayName": "CreateAccount_PostOp",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "Enabled",
+        "contoso-test": "Enabled",
+        "contoso-prod": "Disabled"
+      },
+      "Status": 1,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "ExecutionOrder",
+          "ValuesPerEnv": {
+            "contoso-dev": "1",
+            "contoso-test": "1",
+            "contoso-prod": "1"
+          },
+          "IsMismatch": false
+        },
+        {
+          "PropertyName": "Stage",
+          "ValuesPerEnv": {
+            "contoso-dev": "PostOperation (40)",
+            "contoso-test": "PostOperation (40)",
+            "contoso-prod": "PostOperation (40)"
+          },
+          "IsMismatch": false
+        },
+        {
+          "PropertyName": "Status",
+          "ValuesPerEnv": {
+            "contoso-dev": "Enabled",
+            "contoso-test": "Enabled",
+            "contoso-prod": "Disabled"
+          },
+          "IsMismatch": true
+        }
+      ],
+      "Children": []
+    },
+    {
+      "RootCategory": 1,
+      "SubCategory": "TableColumn",
+      "UniqueKey": "TableColumn.account.new_customer_code",
+      "DisplayName": "account.new_customer_code",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "MaxLength=100",
+        "contoso-test": "MaxLength=100",
+        "contoso-prod": "MaxLength=50"
+      },
+      "Status": 1,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "IsRequired",
+          "ValuesPerEnv": {
+            "contoso-dev": "Yes",
+            "contoso-test": "Yes",
+            "contoso-prod": "Yes"
+          },
+          "IsMismatch": false
+        },
+        {
+          "PropertyName": "MaxLength",
+          "ValuesPerEnv": {
+            "contoso-dev": "100",
+            "contoso-test": "100",
+            "contoso-prod": "50"
+          },
+          "IsMismatch": true
+        },
+        {
+          "PropertyName": "Type",
+          "ValuesPerEnv": {
+            "contoso-dev": "String",
+            "contoso-test": "String",
+            "contoso-prod": "String"
+          },
+          "IsMismatch": false
+        }
+      ],
+      "Children": []
+    },
+    {
+      "RootCategory": 1,
+      "SubCategory": "TableColumn",
+      "UniqueKey": "TableColumn.account.new_loyalty_tier",
+      "DisplayName": "account.new_loyalty_tier",
+      "ParentComponent": "",
+      "EnvironmentValues": {
+        "contoso-dev": "Present",
+        "contoso-test": "Missing \uD83D\uDD37",
+        "contoso-prod": "Missing \uD83D\uDD37"
+      },
+      "Status": 2,
+      "PropertyDiffs": [
+        {
+          "PropertyName": "IsRequired",
+          "ValuesPerEnv": {
+            "contoso-dev": "No",
+            "contoso-test": "[N/A]",
+            "contoso-prod": "[N/A]"
+          },
+          "IsMismatch": true
+        },
+        {
+          "PropertyName": "OptionsCount",
+          "ValuesPerEnv": {
+            "contoso-dev": "4",
+            "contoso-test": "[N/A]",
+            "contoso-prod": "[N/A]"
+          },
+          "IsMismatch": true
+        },
+        {
+          "PropertyName": "Type",
+          "ValuesPerEnv": {
+            "contoso-dev": "OptionSet",
+            "contoso-test": "[N/A]",
+            "contoso-prod": "[N/A]"
+          },
+          "IsMismatch": true
+        }
+      ],
+      "Children": []
+    }
+  ],
+  "TotalCount": 9,
+  "IdenticalCount": 2,
+  "DeltaCount": 6,
+  "UniqueCount": 1
+}

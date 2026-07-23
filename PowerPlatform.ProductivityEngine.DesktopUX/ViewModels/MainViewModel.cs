@@ -234,9 +234,11 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         private string _roleBusinessUnit = string.Empty;
         private string _roleLogMessage = "Ready to audit or synchronize security roles across environments.";
 
-        // Universal In-UX Excel Grid Rows & Live Console Logs
+        // Universal In-UX Excel Grid Rows & Live Console Logs (Divided Into Info & Error Streams)
         public ObservableCollection<KeyValueRow> ModuleExcelGridRows { get; } = new();
         public ObservableCollection<PowerPlatform.ProductivityEngine.Core.Logging.LogEntry> LiveConsoleLogs { get; } = new();
+        public ObservableCollection<PowerPlatform.ProductivityEngine.Core.Logging.LogEntry> InfoConsoleLogs { get; } = new();
+        public ObservableCollection<PowerPlatform.ProductivityEngine.Core.Logging.LogEntry> ErrorConsoleLogs { get; } = new();
 
         public ICommand ClearConsoleCommand { get; }
         public ICommand ExportConsoleLogsCommand { get; }
@@ -345,6 +347,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         public ICommand ExpandAllCommand { get; }
         public ICommand CollapseAllCommand { get; }
+        public ICommand SelectAllTreeNodesCommand { get; }
+        public ICommand SelectNoneTreeNodesCommand { get; }
         public ICommand ExportHtmlCommand { get; }
         public ICommand ExportCsvCommand { get; }
         public ICommand ExportExcelCommand { get; }
@@ -384,6 +388,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
             ExpandAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, true));
             CollapseAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, false));
+            SelectAllTreeNodesCommand = new RelayCommand(_ => SetTreeCheckedState(UnifiedSolutionExplorerTree, true));
+            SelectNoneTreeNodesCommand = new RelayCommand(_ => SetTreeCheckedState(UnifiedSolutionExplorerTree, false));
 
             ExportHtmlCommand = new RelayCommand(_ => ExportHtml());
             ExportCsvCommand = new RelayCommand(_ => ExportCsv());
@@ -405,7 +411,12 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             ExportRoleHtmlCommand = new RelayCommand(_ => ExportRoleHtml());
             ExportRoleExcelCommand = new RelayCommand(_ => ExportRoleExcel());
 
-            ClearConsoleCommand = new RelayCommand(_ => { LiveConsoleLogs.Clear(); PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.Clear(); });
+            ClearConsoleCommand = new RelayCommand(_ => { 
+                LiveConsoleLogs.Clear(); 
+                InfoConsoleLogs.Clear(); 
+                ErrorConsoleLogs.Clear(); 
+                PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.Clear(); 
+            });
             ExportConsoleLogsCommand = new RelayCommand(_ => ExportConsoleLogs());
 
             // Initialize Permanent Execution Console Log Tab (Pinned, index 0)
@@ -420,9 +431,18 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     LiveConsoleLogs.Add(entry);
-                    while (LiveConsoleLogs.Count > 3000)
+                    while (LiveConsoleLogs.Count > 3000) LiveConsoleLogs.RemoveAt(0);
+
+                    if (entry.Level == PowerPlatform.ProductivityEngine.Core.Logging.LogLevel.Error || 
+                        entry.Level == PowerPlatform.ProductivityEngine.Core.Logging.LogLevel.Warning)
                     {
-                        LiveConsoleLogs.RemoveAt(0);
+                        ErrorConsoleLogs.Add(entry);
+                        while (ErrorConsoleLogs.Count > 1000) ErrorConsoleLogs.RemoveAt(0);
+                    }
+                    else
+                    {
+                        InfoConsoleLogs.Add(entry);
+                        while (InfoConsoleLogs.Count > 2000) InfoConsoleLogs.RemoveAt(0);
                     }
                 }));
             };
@@ -621,6 +641,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             }
             ApplyEnvFilter();
 
+            PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogInfo("AdminCheck", $"[START] Commencing parallel System Administrator privileges check across {envList.Count} environment(s)...");
+
             await Task.Run(async () =>
             {
                 int completedCount = 0;
@@ -632,6 +654,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 await Parallel.ForEachAsync(envList, parallelOptions, async (env, ct) =>
                 {
                     bool isAdmin = false;
+                    PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogInfo("AdminCheck", $"[{env.RawName}] Probing Dataverse Web API security roles & Admin privileges at '{env.Url}'...");
 
                     if (IsSimulationMode)
                     {
@@ -769,15 +792,23 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                                 }
                             }
                         }
-                        catch
+                        catch (Exception exProbe)
                         {
-                            // If Web API authentication succeeds, assume admin access
+                            PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogWarning("AdminCheck", $"[{env.RawName}] Privilege probe exception: {exProbe.Message}. Assuming Admin privileges.");
                             isAdmin = true;
                         }
                     }
 
                     int finished = Interlocked.Increment(ref completedCount);
-                    if (isAdmin) Interlocked.Increment(ref adminCount);
+                    if (isAdmin)
+                    {
+                        Interlocked.Increment(ref adminCount);
+                        PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogSuccess("AdminCheck", $"[{env.RawName}] ✅ CONFIRMED System Administrator privilege!");
+                    }
+                    else
+                    {
+                        PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogInfo("AdminCheck", $"[{env.RawName}] Standard user access (Non-Admin).");
+                    }
 
                     Application.Current?.Dispatcher.Invoke(() =>
                     {
@@ -790,6 +821,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                         StatusMessage = ProgressDetails;
                     });
                 }).ConfigureAwait(false);
+
+                PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogSuccess("AdminCheck", $"[COMPLETE] Admin privilege check complete! Checked {envList.Count} environment(s). Found {adminCount} System Administrator(s).");
 
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
@@ -1295,6 +1328,19 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 if (node.Children.Count > 0)
                 {
                     SetTreeExpandedState(node.Children, isExpanded);
+                }
+            }
+        }
+
+        private void SetTreeCheckedState(IEnumerable<DiffNode> nodes, bool isChecked)
+        {
+            if (nodes == null) return;
+            foreach (var node in nodes)
+            {
+                node.IsChecked = isChecked;
+                if (node.Children != null && node.Children.Count > 0)
+                {
+                    SetTreeCheckedState(node.Children, isChecked);
                 }
             }
         }

@@ -58,6 +58,9 @@ namespace PowerPlatform.ProductivityEngine.Core.Logging
                 LogBuffer.TryDequeue(out _);
             }
 
+            // Persist all log entries to SQLite Database automatically
+            SqliteLogStore.SaveLog(entry);
+
             try
             {
                 OnLogReceived?.Invoke(null, entry);

@@ -29,6 +29,7 @@ namespace Utilities.EnvironmentComparator.Models
     public class DiffNode : INotifyPropertyChanged
     {
         private bool _isExpanded = true;
+        private bool _isChecked = true;
 
         public RootCategory RootCategory { get; set; }
         public string SubCategory { get; set; } = string.Empty; // e.g., "OrgDbSettings", "PluginAssembly", "PluginStep", "TableColumn", "EnvVariable"
@@ -44,6 +45,31 @@ namespace Utilities.EnvironmentComparator.Models
         {
             get => _isExpanded;
             set { _isExpanded = value; OnPropertyChanged(); }
+        }
+
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set
+            {
+                if (_isChecked != value)
+                {
+                    _isChecked = value;
+                    OnPropertyChanged();
+                    SetChildrenChecked(this, value);
+                }
+            }
+        }
+
+        private static void SetChildrenChecked(DiffNode parent, bool isChecked)
+        {
+            if (parent.Children == null) return;
+            foreach (var child in parent.Children)
+            {
+                child._isChecked = isChecked;
+                child.OnPropertyChanged(nameof(IsChecked));
+                SetChildrenChecked(child, isChecked);
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

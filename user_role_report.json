@@ -1,0 +1,48 @@
+﻿{
+  "ScannedEmails": [
+    "test1@org.onmicrosoft.com"
+  ],
+  "EnvironmentsScanned": [
+    "contoso-dev",
+    "contoso-test",
+    "contoso-prod"
+  ],
+  "UserStatuses": {
+    "test1@org.onmicrosoft.com": [
+      {
+        "EnvironmentUniqueName": "contoso-dev",
+        "EnvironmentUrl": "https://contoso-dev.crm.dynamics.com",
+        "UserExists": true,
+        "IsDisabled": false,
+        "BusinessUnitName": "Contoso Development BU",
+        "Roles": [
+          "Basic User",
+          "Environment Maker",
+          "System Administrator"
+        ]
+      },
+      {
+        "EnvironmentUniqueName": "contoso-test",
+        "EnvironmentUrl": "https://contoso-test.crm.dynamics.com",
+        "UserExists": true,
+        "IsDisabled": false,
+        "BusinessUnitName": "Contoso Testing BU",
+        "Roles": [
+          "Basic User",
+          "Environment Maker"
+        ]
+      },
+      {
+        "EnvironmentUniqueName": "contoso-prod",
+        "EnvironmentUrl": "https://contoso-prod.crm.dynamics.com",
+        "UserExists": true,
+        "IsDisabled": false,
+        "BusinessUnitName": "Contoso Production BU",
+        "Roles": [
+          "Basic User"
+        ]
+      }
+    ]
+  },
+  "Timestamp": "2026-06-26T00:16:46.3331465Z"
+}

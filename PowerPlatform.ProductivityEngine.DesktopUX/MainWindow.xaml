@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:PowerPlatform.ProductivityEngine.DesktopUX.ViewModels"
         Title="Power Platform Productivity Engine Suite (.NET 9)" Height="920" Width="1420"
+        Icon="Resources/app_logo.ico"
         Background="#0F172A" Foreground="#F8FAFC" WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
@@ -25,6 +26,8 @@
         <Border Grid.Row="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,0,10" BorderBrush="#334155" BorderThickness="1">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <!-- App Logo Image Badge -->
+                    <Image Source="Resources/app_logo.png" Width="28" Height="28" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <TextBlock Text="⚡ POWER PLATFORM ENGINE SUITE" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,16,0"/>
                     <Button Content="🔑 Discover Envs (OAuth)" Command="{Binding DiscoverEnvironmentsCommand}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="12,6" Margin="0,0,8,0" BorderThickness="0"/>
                     <CheckBox Content="Simulation Mode (Offline Demo)" IsChecked="{Binding IsSimulationMode}" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,16,0"/>
@@ -299,45 +302,93 @@
                                     </DockPanel>
                                 </Border>
 
-                                <!-- TERMINAL STYLED LISTBOX -->
-                                <Border Grid.Row="1" Background="#020617" CornerRadius="6" Padding="8" BorderBrush="#1E293B" BorderThickness="1">
-                                    <ListBox ItemsSource="{Binding DataContext.LiveConsoleLogs, RelativeSource={RelativeSource AncestorType=Window}}" Background="Transparent" BorderThickness="0" FontFamily="Consolas" FontSize="12">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,1">
-                                                    <TextBlock Text="[" Foreground="#64748B"/>
-                                                    <TextBlock Text="{Binding FormattedTimestamp}" Foreground="#38BDF8"/>
-                                                    <TextBlock Text="] [" Foreground="#64748B"/>
-                                                    <TextBlock Text="{Binding Level}" FontWeight="Bold" Width="65">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#38BDF8"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding Level}" Value="Success">
-                                                                        <Setter Property="Foreground" Value="#34D399"/>
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding Level}" Value="Warning">
-                                                                        <Setter Property="Foreground" Value="#F59E0B"/>
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding Level}" Value="Error">
-                                                                        <Setter Property="Foreground" Value="#EF4444"/>
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding Level}" Value="Progress">
-                                                                        <Setter Property="Foreground" Value="#A855F7"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                    <TextBlock Text="] [" Foreground="#64748B"/>
-                                                    <TextBlock Text="{Binding Category}" Foreground="#F59E0B" Width="95"/>
-                                                    <TextBlock Text="] " Foreground="#64748B"/>
-                                                    <TextBlock Text="{Binding Message}" Foreground="#F8FAFC" TextWrapping="Wrap"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </Border>
+                                <!-- 2 VERTICAL PANELS CONSOLE LAYOUT (PANEL 1 TOP: INFO STREAM, PANEL 2 BOTTOM: ERRORS & WARNINGS) -->
+                                <Grid Grid.Row="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="6*"/>
+                                        <RowDefinition Height="5"/>
+                                        <RowDefinition Height="4*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- TOP PANEL 1: EXECUTION & INFO LOG STREAM -->
+                                    <Border Grid.Row="0" Background="#020617" CornerRadius="6" Padding="8" BorderBrush="#1E293B" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <DockPanel Grid.Row="0" Margin="4,2,4,8">
+                                                <TextBlock Text="ℹ️ EXECUTION &amp; INFO LOG STREAM" FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Left"/>
+                                                <TextBlock Text="Web API, MSAL Authentication, &amp; Engine Metadata Crawling (Saved to SQLite)" Foreground="#64748B" FontSize="11" DockPanel.Dock="Right"/>
+                                            </DockPanel>
+                                            <ListBox Grid.Row="1" ItemsSource="{Binding DataContext.InfoConsoleLogs, RelativeSource={RelativeSource AncestorType=Window}}" Background="Transparent" BorderThickness="0" FontFamily="Consolas" FontSize="12">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="[" Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding FormattedTimestamp}" Foreground="#38BDF8"/>
+                                                            <TextBlock Text="] [" Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding Level}" FontWeight="Bold" Width="60">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="#38BDF8"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Level}" Value="Success">
+                                                                                <Setter Property="Foreground" Value="#34D399"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Level}" Value="Progress">
+                                                                                <Setter Property="Foreground" Value="#A855F7"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                            <TextBlock Text="] [" Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding Category}" Foreground="#F59E0B" Width="90"/>
+                                                            <TextBlock Text="] " Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding Message}" Foreground="#F8FAFC" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- HORIZONTAL GRID SPLITTER -->
+                                    <GridSplitter Grid.Row="1" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Background="#334155"/>
+
+                                    <!-- BOTTOM PANEL 2: ERRORS & WARNINGS DIAGNOSTICS PANEL -->
+                                    <Border Grid.Row="2" Background="#0F172A" CornerRadius="6" Padding="8" BorderBrush="#EF4444" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <DockPanel Grid.Row="0" Margin="4,2,4,8">
+                                                <TextBlock Text="⚠️ ERRORS &amp; WARNINGS DIAGNOSTICS" FontWeight="Bold" Foreground="#EF4444" FontSize="12" DockPanel.Dock="Left"/>
+                                                <TextBlock Text="Filtered Failures &amp; Exceptions (Saved to SQLite)" Foreground="#F59E0B" FontSize="11" DockPanel.Dock="Right"/>
+                                            </DockPanel>
+                                            <ListBox Grid.Row="1" ItemsSource="{Binding DataContext.ErrorConsoleLogs, RelativeSource={RelativeSource AncestorType=Window}}" Background="Transparent" BorderThickness="0" FontFamily="Consolas" FontSize="12">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Margin="0,3">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="[" Foreground="#64748B"/>
+                                                                <TextBlock Text="{Binding FormattedTimestamp}" Foreground="#EF4444"/>
+                                                                <TextBlock Text="] [" Foreground="#64748B"/>
+                                                                <TextBlock Text="{Binding Level}" FontWeight="Bold" Foreground="#F59E0B"/>
+                                                                <TextBlock Text="] [" Foreground="#64748B"/>
+                                                                <TextBlock Text="{Binding Category}" Foreground="#F8FAFC"/>
+                                                                <TextBlock Text="]" Foreground="#64748B"/>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding Message}" Foreground="#FCA5A5" TextWrapping="Wrap" Margin="10,2,0,0"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
                             </Grid>
                         </Grid>
 
@@ -410,10 +461,12 @@
                                     <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="#334155" Cursor="SizeNS"/>
 
                                     <DockPanel Grid.Row="2" Margin="0,6,0,6" LastChildFill="False">
-                                        <TextBlock Text="📁 SOLUTION EXPLORER TREE" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                                        <TextBlock Text="📁 EXPLODED SOLUTION EXPLORER TREE" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                            <Button Content="🔄 Run Compare" Command="{Binding DataContext.CompareEnvironmentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="8,3" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
-                                            <Button Content="➕ Expand" Command="{Binding DataContext.ExpandAllCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                            <Button Content="☑️ Select All" Command="{Binding DataContext.SelectAllTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="6,3" Margin="0,0,4,0" FontSize="10" BorderThickness="0"/>
+                                            <Button Content="🔲 Select None" Command="{Binding DataContext.SelectNoneTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#475569" Foreground="White" Padding="6,3" Margin="0,0,6,0" FontSize="10" BorderThickness="0"/>
+                                            <Button Content="🚀 Compare Selected" Command="{Binding DataContext.CompareEnvironmentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="8,3" Margin="0,0,4,0" FontSize="11" BorderThickness="0"/>
+                                            <Button Content="➕ Expand" Command="{Binding DataContext.ExpandAllCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="6,3" Margin="0,0,2,0" FontSize="10" BorderThickness="0"/>
                                         </StackPanel>
                                     </DockPanel>
 
@@ -427,6 +480,7 @@
                                         <TreeView.ItemTemplate>
                                             <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                                 <StackPanel Orientation="Horizontal" Margin="2">
+                                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                     <TextBlock Text="{Binding DisplayName}" Foreground="#F8FAFC" FontWeight="SemiBold" Margin="0,0,8,0"/>
                                                     <TextBlock Text="{Binding Status}" Foreground="#38BDF8" FontSize="11" VerticalAlignment="Center"/>
                                                 </StackPanel>

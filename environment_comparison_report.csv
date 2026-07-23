@@ -1,0 +1,10 @@
+﻿RootCategory,SubCategory,ComponentKey,Status,contoso-dev,contoso-test,contoso-prod
+"AdminSettings","OrgDbSettings","OrgDbSettings.MaxVerboseLog","Delta","Verbose","Warning","Warning"
+"AdminSettings","OrgDbSettings","OrgDbSettings.SkipRuleCheck","Identical","True","True","True"
+"AdminSettings","Security","Security.MaxSessionTimeout","Delta","1440 mins","480 mins","480 mins"
+"MetadataCustomizations","CloudFlow","CloudFlow.ProcessOrderNotification","Identical","Started","Started","Started"
+"MetadataCustomizations","EnvVariable","EnvVariable.new_PaymentApiUrl","Delta","https://dev.api.payments.com","https://test.api.payments.com","https://prod.api.payments.com"
+"MetadataCustomizations","PluginAssembly","PluginAssembly.AccountPlugin.dll","Delta","1.2.0.0","1.2.0.0","1.1.0.0"
+"MetadataCustomizations","PluginStep","PluginStep.CreateAccount_PostOp","Delta","Enabled","Enabled","Disabled"
+"MetadataCustomizations","TableColumn","TableColumn.account.new_customer_code","Delta","MaxLength=100","MaxLength=100","MaxLength=50"
+"MetadataCustomizations","TableColumn","TableColumn.account.new_loyalty_tier","Unique","Present","Missing 🔷","Missing 🔷"

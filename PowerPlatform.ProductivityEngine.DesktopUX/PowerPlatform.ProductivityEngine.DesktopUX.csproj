@@ -6,7 +6,13 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ApplicationIcon>Resources\app_logo.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\app_logo.png" />
+    <Resource Include="Resources\app_logo.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PowerPlatform.ProductivityEngine.Core\PowerPlatform.ProductivityEngine.Core.csproj" />
