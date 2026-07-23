@@ -30,7 +30,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
         private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)> TokenCache = 
             new ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresOn)>();
 
-        private static (string Token, DateTimeOffset ExpiresOn)? SharedSsoToken;
         private static readonly SemaphoreSlim AuthSemaphore = new SemaphoreSlim(1, 1);
 
         public string? PreferredUsername { get; }
@@ -40,11 +39,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
         {
             PreferredUsername = username;
             TenantId = tenantId;
-        }
-
-        public void SetSharedSsoToken(string token, DateTimeOffset expiresOn)
-        {
-            SharedSsoToken = (token, expiresOn);
         }
 
         public static async Task<string> AutoDiscoverTenantIdAsync(string domain)
@@ -101,7 +95,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
             MsalTokenCacheHelper.EnableSerialization(pca.UserTokenCache);
 
-            // Primary scope: .default
+            // Primary scope: .default for Global Discovery
             string[] scopes = new[] { "https://globaldisco.crm.dynamics.com/.default" };
 
             AuthenticationResult authResult;
@@ -117,7 +111,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             }
 
             string token = authResult.AccessToken;
-            SetSharedSsoToken(token, authResult.ExpiresOn);
 
             if (!string.IsNullOrWhiteSpace(PreferredUsername))
             {
@@ -205,12 +198,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 }
             }
 
-            if (SharedSsoToken.HasValue && DateTimeOffset.UtcNow.AddMinutes(5) < SharedSsoToken.Value.ExpiresOn)
-            {
-                TokenCache[cacheKey] = SharedSsoToken.Value;
-                return SharedSsoToken.Value.Token;
-            }
-
             await AuthSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -272,8 +259,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
                 var expires = DateTimeOffset.UtcNow.AddHours(1);
                 TokenCache[cacheKey] = (token, expires);
 
-                SharedSsoToken = (token, expires);
-
                 return token;
             }
             finally
@@ -284,7 +269,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
 
         private static async Task<AuthenticationResult> AcquireTokenWithFallbacksAsync(IPublicClientApplication pca, string[] scopes, string? username)
         {
-            // 0. SILENT TOKEN ACQUISITION (USES PERSISTENT ENCRYPTED TOKEN CACHE WITHOUT POPPING DIALOGS)
+            // 0. SILENT TOKEN ACQUISITION (USES PERSISTENT ENCRYPTED TOKEN CACHE SPECIFIC TO TARGET RESOURCE)
             try
             {
                 var accounts = await pca.GetAccountsAsync().ConfigureAwait(false);
@@ -302,7 +287,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             }
             catch
             {
-                // Fallthrough to interactive if silent token renewal fails
+                // Fallthrough to interactive if silent token renewal fails for this specific resource
             }
 
             // Attempt 1: Embedded WebView popup window
@@ -340,7 +325,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             if (string.IsNullOrWhiteSpace(environmentUrl))
             {
                 TokenCache.Clear();
-                SharedSsoToken = null;
             }
             else
             {

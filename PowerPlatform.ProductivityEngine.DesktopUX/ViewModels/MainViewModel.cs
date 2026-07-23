@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -278,7 +279,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             set { _statusMessage = value; OnPropertyChanged(); }
         }
 
-        // Search Text Property
+        // Search Text Property with Wildcard Filtering Trigger
         public string EnvSearchText
         {
             get => _envSearchText;
@@ -423,7 +424,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.Comparator);
                     if (newTab == null)
                     {
-                        newTab = new WorkspaceTabItem("🌐 Environment Comparator (Module 7)", ModuleType.Comparator, true, CloseWorkspaceTab);
+                        newTab = new WorkspaceTabItem("🌐 Environment Comparator & Solution Explorer", ModuleType.Comparator, true, CloseWorkspaceTab);
                         WorkspaceTabs.Add(newTab);
                     }
                     break;
@@ -432,7 +433,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.DeepValidator);
                     if (newTab == null)
                     {
-                        newTab = new WorkspaceTabItem("🔍 Solution Deep Validator (Module 2)", ModuleType.DeepValidator, true, CloseWorkspaceTab);
+                        newTab = new WorkspaceTabItem("🔍 Solution Deep Validator", ModuleType.DeepValidator, true, CloseWorkspaceTab);
                         WorkspaceTabs.Add(newTab);
                     }
                     break;
@@ -441,7 +442,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.SolutionRepair);
                     if (newTab == null)
                     {
-                        newTab = new WorkspaceTabItem("🔧 Solution Repair & Distiller (Module 1)", ModuleType.SolutionRepair, true, CloseWorkspaceTab);
+                        newTab = new WorkspaceTabItem("🔧 Solution Repair & Distiller", ModuleType.SolutionRepair, true, CloseWorkspaceTab);
                         WorkspaceTabs.Add(newTab);
                     }
                     break;
@@ -450,7 +451,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.SecurityRoleManager);
                     if (newTab == null)
                     {
-                        newTab = new WorkspaceTabItem("👥 Security Role Manager (Module 3)", ModuleType.SecurityRoleManager, true, CloseWorkspaceTab);
+                        newTab = new WorkspaceTabItem("👥 Security Role Lifecycle Manager", ModuleType.SecurityRoleManager, true, CloseWorkspaceTab);
                         WorkspaceTabs.Add(newTab);
                     }
                     break;
@@ -459,7 +460,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.WebResourceSync);
                     if (newTab == null)
                     {
-                        newTab = new WorkspaceTabItem("⚡ Web Resource & JS Sync (Module 4)", ModuleType.WebResourceSync, true, CloseWorkspaceTab);
+                        newTab = new WorkspaceTabItem("⚡ Web Resource & JS Transpiler Sync", ModuleType.WebResourceSync, true, CloseWorkspaceTab);
                         WorkspaceTabs.Add(newTab);
                     }
                     break;
@@ -468,7 +469,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.PluginDiff);
                     if (newTab == null)
                     {
-                        newTab = new WorkspaceTabItem("🔌 Plugin Step Diff Engine (Module 5)", ModuleType.PluginDiff, true, CloseWorkspaceTab);
+                        newTab = new WorkspaceTabItem("🔌 Plugin Step Diff Engine", ModuleType.PluginDiff, true, CloseWorkspaceTab);
                         WorkspaceTabs.Add(newTab);
                     }
                     break;
@@ -501,6 +502,24 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             ApplyEnvFilter();
         }
 
+        public static bool IsWildcardMatch(string text, string pattern)
+        {
+            if (string.IsNullOrWhiteSpace(pattern)) return true;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            pattern = pattern.Trim();
+            if (!pattern.Contains('*') && !pattern.Contains('?'))
+            {
+                return text.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+            }
+
+            string regexPattern = "^" + Regex.Escape(pattern)
+                .Replace("\\*", ".*")
+                .Replace("\\?", ".") + "$";
+
+            return Regex.IsMatch(text, regexPattern, RegexOptions.IgnoreCase);
+        }
+
         public void ApplyEnvFilter()
         {
             FilteredEnvironments.Clear();
@@ -508,8 +527,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
             if (!string.IsNullOrWhiteSpace(EnvSearchText))
             {
-                string term = EnvSearchText.Trim().ToLowerInvariant();
-                query = query.Where(e => e.RawName.ToLowerInvariant().Contains(term) || e.Url.ToLowerInvariant().Contains(term));
+                string term = EnvSearchText.Trim();
+                query = query.Where(e => IsWildcardMatch(e.RawName, term) || IsWildcardMatch(e.Url, term));
             }
 
             if (SelectedSortOption != null && SelectedSortOption.Contains("Admin First"))

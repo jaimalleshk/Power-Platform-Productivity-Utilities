@@ -87,22 +87,27 @@
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
 
-                                        <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
+                                        <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
                                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                                                 <TextBlock Text="🌐 MASTER ENVIRONMENTS REGISTRY" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                <TextBlock Text="(Global tenant environment repository for all modules)" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text="(Global tenant environment repository)" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                <TextBlock Text="Sort / Group: " Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"/>
+                                                <!-- Wildcard Search Box Placed Directly BEFORE Sort / Group Dropdown -->
+                                                <TextBlock Text="🔍 Search (*): " Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11"/>
+                                                <TextBox Text="{Binding DataContext.EnvSearchText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" 
+                                                         Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,3" Margin="0,0,12,0" FontSize="11" Width="180" 
+                                                         ToolTip="Supports Wildcard Search, e.g. *dev*, *sandbox*, *prod*, contoso*"/>
+
+                                                <TextBlock Text="Sort / Group: " Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11"/>
                                                 
                                                 <!-- High Contrast Dark Styled ComboBox -->
                                                 <ComboBox ItemsSource="{Binding DataContext.SortOptions, RelativeSource={RelativeSource AncestorType=Window}}" 
                                                           SelectedItem="{Binding DataContext.SelectedSortOption, RelativeSource={RelativeSource AncestorType=Window}}" 
-                                                          Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,3" Margin="0,0,10,0" FontSize="11" Width="155">
+                                                          Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,3" Margin="0,0,10,0" FontSize="11" Width="145">
                                                     <ComboBox.ItemContainerStyle>
                                                         <Style TargetType="ComboBoxItem">
                                                             <Setter Property="Background" Value="#1E293B"/>
@@ -124,11 +129,8 @@
                                             </StackPanel>
                                         </DockPanel>
 
-                                        <!-- Filter Input -->
-                                        <TextBox Grid.Row="1" Text="{Binding DataContext.EnvSearchText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Background="#0F172A" Foreground="#F8FAFC" BorderBrush="#334155" Padding="8,6" Margin="0,0,0,10" FontSize="12"/>
-
                                         <!-- Full Page Master Environments Registry ListBox -->
-                                        <ListBox Grid.Row="2" ItemsSource="{Binding DataContext.FilteredEnvironments, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0F172A" BorderBrush="#334155">
+                                        <ListBox Grid.Row="1" ItemsSource="{Binding DataContext.FilteredEnvironments, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0F172A" BorderBrush="#334155">
                                             <ListBox.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <WrapPanel Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
@@ -178,7 +180,7 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Text="🌐 Module 7: Multi-Env Comparator &amp; Solution Explorer" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="0" Text="🌐 Environment Comparator &amp; Solution Explorer" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                                     <TextBlock Grid.Row="1" Text="N-Way multi-environment matrix comparison, Root 1 &amp; Root 2 Solution Explorer tree, side-by-side property diffing, de-compiled code &amp; form XML viewer." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                                     <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module7" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
                                                 </Grid>
@@ -192,7 +194,7 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Text="🔍 Module 2: Solution Deep Validator" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="0" Text="🔍 Solution Deep Validator" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                                     <TextBlock Grid.Row="1" Text="Executes 19 deep static analysis &amp; compliance checkers on solution ZIP packages across single or multi-tenant environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                                     <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module2" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
                                                 </Grid>
@@ -206,7 +208,7 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Text="🔧 Module 1: Solution Repair &amp; Distiller" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="0" Text="🔧 Solution Repair &amp; Distiller" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                                     <TextBlock Grid.Row="1" Text="Repairs corrupt solution XML syntax and distills OOB table bloat across environments automatically." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                                     <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module1" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
                                                 </Grid>
@@ -220,7 +222,7 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Text="👥 Module 3: Security Role Lifecycle Manager" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="0" Text="👥 Security Role Lifecycle Manager" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                                     <TextBlock Grid.Row="1" Text="Audits user security role drift, business unit assignments, and bulk-synchronizes security roles across tenant environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                                     <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module3" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,6" BorderThickness="0"/>
                                                 </Grid>
@@ -234,7 +236,7 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Text="⚡ Module 4: Web Resource &amp; JS Transpiler Sync" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="0" Text="⚡ Web Resource &amp; JS Transpiler Sync" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                                     <TextBlock Grid.Row="1" Text="Diffs TypeScript/JS web resources and deploys live updates directly to Dataverse environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                                     <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module4" Background="#334155" Foreground="White" Padding="10,6" BorderThickness="0"/>
                                                 </Grid>
@@ -248,7 +250,7 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Text="🔌 Module 5: Plugin Step Diff Engine" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                    <TextBlock Grid.Row="0" Text="🔌 Plugin Step Diff Engine" FontWeight="Bold" Foreground="#38BDF8" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                                     <TextBlock Grid.Row="1" Text="De-compiles C# assemblies, diffs plugin steps, filtering attributes, and execution order across environments." Foreground="#CBD5E1" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                                     <Button Grid.Row="2" Content="▶️ Open Module in New Tab" Command="{Binding DataContext.OpenModuleTabCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Module5" Background="#334155" Foreground="White" Padding="10,6" BorderThickness="0"/>
                                                 </Grid>
