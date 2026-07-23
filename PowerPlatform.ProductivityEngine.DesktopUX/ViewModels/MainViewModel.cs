@@ -36,8 +36,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
     public class MainViewModel : INotifyPropertyChanged
     {
-        private bool _isSimulationMode = true;
-        private string _statusMessage = "Ready. Select 1 environment for Exploration or 2+ for Comparison.";
+        private bool _isSimulationMode = false; // Default to Live Mode for Discover Envs button
+        private string _statusMessage = "Ready. Click 'Discover Envs (OAuth)' to connect to your tenant.";
         private string _userEmail = string.Empty;
         private int _totalItems;
         private int _identicalCount;
@@ -117,38 +117,45 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         public async Task DiscoverEnvironmentsAsync()
         {
-            if (IsSimulationMode)
+            bool? dialogResult = false;
+            string enteredUsername = string.Empty;
+            string enteredTenant = string.Empty;
+
+            // Always show Credential Dialog on UI Dispatcher thread when button is clicked
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                StatusMessage = "[SIMULATION] Populating demo environments (contoso-dev, test, prod)...";
-                await Task.Delay(200);
-                if (DiscoveredEnvironments.Count == 0)
+                var dialog = new CredentialDialog
                 {
-                    DiscoveredEnvironments.Add(new SelectableEnv { Name = "contoso-dev", Url = "https://contoso-dev.crm.dynamics.com", IsSelected = true });
-                    DiscoveredEnvironments.Add(new SelectableEnv { Name = "contoso-test", Url = "https://contoso-test.crm.dynamics.com", IsSelected = true });
-                    DiscoveredEnvironments.Add(new SelectableEnv { Name = "contoso-prod", Url = "https://contoso-prod.crm.dynamics.com", IsSelected = true });
+                    Owner = Application.Current?.MainWindow
+                };
+
+                dialogResult = dialog.ShowDialog();
+                if (dialogResult == true)
+                {
+                    enteredUsername = dialog.Username;
+                    enteredTenant = dialog.TenantId;
                 }
-                StatusMessage = "Discovered 3 simulated environments. Select target environments to explore or compare.";
+            });
+
+            if (dialogResult != true || string.IsNullOrWhiteSpace(enteredUsername))
+            {
+                StatusMessage = "Environment Discovery cancelled.";
                 return;
             }
 
-            // Real OAuth Discovery - Open Credentials Dialog
-            var dialog = new CredentialDialog
-            {
-                Owner = Application.Current?.MainWindow
-            };
+            UserEmail = enteredUsername;
+            IsSimulationMode = false; // Turn off simulation mode for live tenant discovery
+            StatusMessage = $"Authenticating as {UserEmail} via MSAL Azure AD...";
 
-            if (dialog.ShowDialog() == true)
+            try
             {
-                UserEmail = dialog.Username;
-                StatusMessage = $"Authenticating as {UserEmail} via MSAL Azure AD...";
+                var authProvider = new MsalAuthenticationProvider(username: UserEmail, tenantId: enteredTenant);
+                StatusMessage = $"Discovering Dataverse environments for tenant ({UserEmail})...";
 
-                try
+                var envs = await authProvider.DiscoverEnvironmentsAsync().ConfigureAwait(true);
+
+                if (envs != null && envs.Count > 0)
                 {
-                    var authProvider = new MsalAuthenticationProvider(username: UserEmail, tenantId: dialog.TenantId);
-                    StatusMessage = $"Discovering Dataverse environments for tenant ({UserEmail})...";
-
-                    var envs = await authProvider.DiscoverEnvironmentsAsync().ConfigureAwait(true);
-
                     DiscoveredEnvironments.Clear();
                     foreach (var env in envs)
                     {
@@ -160,13 +167,20 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                         });
                     }
 
-                    StatusMessage = $"Discovered {DiscoveredEnvironments.Count} real tenant environments for {UserEmail}.";
+                    StatusMessage = $"Discovered {DiscoveredEnvironments.Count} real tenant environments for {UserEmail}. Select target environments to explore or compare.";
                 }
-                catch (Exception ex)
+                else
+                {
+                    StatusMessage = $"No environments returned for tenant {UserEmail}. Check user permissions.";
+                }
+            }
+            catch (Exception ex)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
                 {
                     MessageBox.Show($"Authentication or Environment Discovery failed:\n{ex.Message}", "OAuth Discovery Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    StatusMessage = $"Discovery error: {ex.Message}";
-                }
+                });
+                StatusMessage = $"Discovery error: {ex.Message}";
             }
         }
 
