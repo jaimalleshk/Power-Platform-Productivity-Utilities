@@ -2,9 +2,13 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:PowerPlatform.ProductivityEngine.DesktopUX.ViewModels"
-        Title="Power Platform Environment Comparator &amp; Solution Explorer (.NET 9)" Height="850" Width="1350"
+        Title="Power Platform Environment Comparator &amp; Solution Explorer (.NET 9)" Height="870" Width="1350"
         Background="#0F172A" Foreground="#F8FAFC" WindowStartupLocation="CenterScreen">
     
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
@@ -12,12 +16,13 @@
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- TOP TOOLBAR & CONTROLS -->
-        <Border Grid.Row="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,0,12" BorderBrush="#334155" BorderThickness="1">
+        <Border Grid.Row="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,0,10" BorderBrush="#334155" BorderThickness="1">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                     <TextBlock Text="⚡ POWER PLATFORM COMPARATOR" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,16,0"/>
@@ -33,10 +38,25 @@
             </DockPanel>
         </Border>
 
+        <!-- PROGRESS & STATUS BANNER (VISIBLE WHEN PROCESSING) -->
+        <Border Grid.Row="1" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" Background="#1E293B" CornerRadius="6" Padding="10,8" Margin="0,0,0,10" BorderBrush="#0284C7" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="0,0,0,6" LastChildFill="True">
+                    <TextBlock Text="⏳ PROCESSING IN PROGRESS: " FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Left"/>
+                    <TextBlock Text="{Binding ProgressDetails}" Foreground="#F8FAFC" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+                <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="8" Background="#0F172A" Foreground="#0284C7" BorderThickness="0"/>
+            </Grid>
+        </Border>
+
         <!-- MAIN SPLIT CONTENT -->
-        <Grid Grid.Row="1" Margin="0,0,0,12">
+        <Grid Grid.Row="2" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="440"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -49,13 +69,20 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Discovered Environments List -->
+                    <!-- Discovered Environments Header & List -->
                     <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                        <TextBlock Text="🌐 DISCOVERED ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,4"/>
-                        <ListBox ItemsSource="{Binding DiscoveredEnvironments}" Background="#0F172A" BorderBrush="#334155" Height="80">
+                        <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                            <TextBlock Text="🌐 DISCOVERED ENVIRONMENTS" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="➕ Add Env URL" Command="{Binding AddManualEnvCommand}" Background="#334155" Foreground="White" Padding="6,2" Margin="0,0,4,0" FontSize="11" BorderThickness="0"/>
+                                <Button Content="☑️ Toggle All" Command="{Binding SelectAllEnvsCommand}" Background="#334155" Foreground="White" Padding="6,2" FontSize="11" BorderThickness="0"/>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <ListBox ItemsSource="{Binding DiscoveredEnvironments}" Background="#0F172A" BorderBrush="#334155" Height="95">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Foreground="#F8FAFC" Margin="4,2"/>
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Foreground="#F8FAFC" Margin="4,2" ToolTip="{Binding Url}"/>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -168,7 +195,7 @@
         </Grid>
 
         <!-- STATUS BAR -->
-        <Border Grid.Row="2" Background="#0F172A" Padding="6,4">
+        <Border Grid.Row="3" Background="#0F172A" Padding="6,4">
             <TextBlock Text="{Binding StatusMessage}" Foreground="#94A3B8" FontSize="12"/>
         </Border>
     </Grid>

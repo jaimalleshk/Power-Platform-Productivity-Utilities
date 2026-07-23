@@ -77,6 +77,9 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private bool _isSimulationMode = false;
+        private bool _isLoading = false;
+        private double _progressPercentage = 0;
+        private string _progressDetails = string.Empty;
         private string _statusMessage = "Ready. Click 'Discover Envs (OAuth)' to connect to your tenant.";
         private string _userEmail = string.Empty;
         private int _totalItems;
@@ -91,6 +94,24 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public ObservableCollection<EnvDetailTabViewModel> EnvDetailTabs { get; } = new();
 
         public ComparisonScope Scope { get; } = new ComparisonScope();
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set { _isLoading = value; OnPropertyChanged(); }
+        }
+
+        public double ProgressPercentage
+        {
+            get => _progressPercentage;
+            set { _progressPercentage = value; OnPropertyChanged(); }
+        }
+
+        public string ProgressDetails
+        {
+            get => _progressDetails;
+            set { _progressDetails = value; OnPropertyChanged(); }
+        }
 
         public bool IsSimulationMode
         {
@@ -129,6 +150,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         public ICommand DiscoverEnvironmentsCommand { get; }
         public ICommand CompareEnvironmentsCommand { get; }
+        public ICommand AddManualEnvCommand { get; }
+        public ICommand SelectAllEnvsCommand { get; }
         public ICommand ExpandAllCommand { get; }
         public ICommand CollapseAllCommand { get; }
         public ICommand ExportHtmlCommand { get; }
@@ -143,6 +166,8 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         {
             DiscoverEnvironmentsCommand = new RelayCommand(async _ => await DiscoverEnvironmentsAsync());
             CompareEnvironmentsCommand = new RelayCommand(async _ => await CompareEnvironmentsAsync());
+            AddManualEnvCommand = new RelayCommand(_ => AddManualEnvironment());
+            SelectAllEnvsCommand = new RelayCommand(_ => ToggleSelectAllEnvs());
             ExpandAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, true));
             CollapseAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, false));
 
@@ -185,14 +210,23 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
             UserEmail = enteredUsername;
             IsSimulationMode = false;
+            IsLoading = true;
+            ProgressPercentage = 10;
+            ProgressDetails = "Authenticating via MSAL Azure AD...";
             StatusMessage = $"Authenticating as {UserEmail} via MSAL Azure AD...";
 
             try
             {
                 var authProvider = new MsalAuthenticationProvider(username: UserEmail, tenantId: enteredTenant);
-                StatusMessage = $"Discovering Dataverse environments for tenant ({UserEmail})...";
 
-                var envs = await authProvider.DiscoverEnvironmentsAsync().ConfigureAwait(true);
+                var envs = await authProvider.DiscoverEnvironmentsAsync(msg =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        ProgressDetails = msg;
+                        StatusMessage = msg;
+                    });
+                }).ConfigureAwait(true);
 
                 if (envs != null && envs.Count > 0)
                 {
@@ -207,11 +241,14 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                         });
                     }
 
+                    ProgressPercentage = 100;
+                    ProgressDetails = $"Successfully discovered {DiscoveredEnvironments.Count} real tenant environments!";
                     StatusMessage = $"Discovered {DiscoveredEnvironments.Count} real tenant environments for {UserEmail}. Select target environments to explore or compare.";
                 }
                 else
                 {
-                    StatusMessage = $"No environments returned for tenant {UserEmail}. Check user permissions.";
+                    ProgressDetails = "No environments returned from Global Discovery API.";
+                    StatusMessage = $"No environments returned for tenant {UserEmail}. You can click '➕ Add Env URL' to manually add your target environment URL.";
                 }
             }
             catch (Exception ex)
@@ -220,7 +257,12 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 {
                     MessageBox.Show($"Authentication or Environment Discovery failed:\n{ex.Message}", "OAuth Discovery Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
+                ProgressDetails = $"Discovery error: {ex.Message}";
                 StatusMessage = $"Discovery error: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
             }
         }
 
@@ -234,6 +276,9 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             }
 
             bool isSingleEnv = selectedEnvs.Count == 1;
+            IsLoading = true;
+            ProgressPercentage = 0;
+            ProgressDetails = isSingleEnv ? $"Exploring single environment ({selectedEnvs[0].Name})..." : $"Comparing {selectedEnvs.Count} environments...";
             StatusMessage = isSingleEnv 
                 ? $"Exploring single environment ({selectedEnvs[0].Name})..." 
                 : $"Comparing {selectedEnvs.Count} environments via D365 Web API / OAuth...";
@@ -251,48 +296,121 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             var crawler = new EnvironmentMetadataCrawler(useSimulationMode: IsSimulationMode);
             _lastRawEnvDataList.Clear();
 
+            int currentEnvIndex = 0;
+            int totalEnvs = profiles.Count;
+
             var progress = new Progress<ProgressUpdate>(p => {
-                StatusMessage = $"[{p.Stage}] {p.Message}";
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    double stepPct = (double)currentEnvIndex / totalEnvs * 100;
+                    ProgressPercentage = Math.Min(95, p.PercentComplete > 0 ? p.PercentComplete : stepPct);
+                    ProgressDetails = $"Environment [{currentEnvIndex}/{totalEnvs}]: [{p.Stage}] {p.Message}";
+                    StatusMessage = ProgressDetails;
+                });
             });
 
-            foreach (var profile in profiles)
+            try
             {
-                var data = await crawler.CrawlEnvironmentAsync(profile, Scope, progress);
-                _lastRawEnvDataList.Add(data);
+                foreach (var profile in profiles)
+                {
+                    currentEnvIndex++;
+                    var data = await crawler.CrawlEnvironmentAsync(profile, Scope, progress);
+                    _lastRawEnvDataList.Add(data);
+                }
+
+                ProgressDetails = "Executing N-Way Matrix Diffing & Solution Explorer Tree Building...";
+                StatusMessage = ProgressDetails;
+
+                var comparer = new NWayComparer();
+                _lastResult = comparer.CompareEnvironments(_lastRawEnvDataList, Scope);
+
+                var root1Folder = new DiffNode
+                {
+                    RootCategory = RootCategory.AdminSettings,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Root 1: Admin & Environment Settings (OrgDbOrgSettings, Security, EnvVars)",
+                    UniqueKey = "Root1.AdminSettings"
+                };
+                foreach (var n in _lastResult.AdminSettingsNodes) root1Folder.Children.Add(n);
+
+                var root2Folder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "📁 Root 2: Solution Explorer & Customizations (Solutions, Apps, Tables, Plugins)",
+                    UniqueKey = "Root2.SolutionExplorer"
+                };
+                foreach (var n in _lastResult.MetadataNodes) root2Folder.Children.Add(n);
+
+                UnifiedSolutionExplorerTree.Add(root1Folder);
+                UnifiedSolutionExplorerTree.Add(root2Folder);
+
+                TotalItems = _lastResult.TotalCount;
+                IdenticalCount = _lastResult.IdenticalCount;
+                DeltaCount = _lastResult.DeltaCount;
+                UniqueCount = _lastResult.UniqueCount;
+
+                ProgressPercentage = 100;
+                ProgressDetails = isSingleEnv
+                    ? $"Exploration complete for {selectedEnvs[0].Name}. Total components: {TotalItems}."
+                    : $"Comparison complete across {selectedEnvs.Count} environments. Found {_lastResult.DeltaCount} Deltas, {_lastResult.UniqueCount} Unique items.";
+
+                StatusMessage = ProgressDetails;
             }
-
-            var comparer = new NWayComparer();
-            _lastResult = comparer.CompareEnvironments(_lastRawEnvDataList, Scope);
-
-            var root1Folder = new DiffNode
+            catch (Exception ex)
             {
-                RootCategory = RootCategory.AdminSettings,
-                SubCategory = "Folder",
-                DisplayName = "📁 Root 1: Admin & Environment Settings (OrgDbOrgSettings, Security, EnvVars)",
-                UniqueKey = "Root1.AdminSettings"
-            };
-            foreach (var n in _lastResult.AdminSettingsNodes) root1Folder.Children.Add(n);
-
-            var root2Folder = new DiffNode
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Crawl / Comparison Error:\n{ex.Message}", "Comparison Failure", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
+                StatusMessage = $"Error during comparison: {ex.Message}";
+            }
+            finally
             {
-                RootCategory = RootCategory.MetadataCustomizations,
-                SubCategory = "Folder",
-                DisplayName = "📁 Root 2: Solution Explorer & Customizations (Solutions, Apps, Tables, Plugins)",
-                UniqueKey = "Root2.SolutionExplorer"
-            };
-            foreach (var n in _lastResult.MetadataNodes) root2Folder.Children.Add(n);
+                IsLoading = false;
+            }
+        }
 
-            UnifiedSolutionExplorerTree.Add(root1Folder);
-            UnifiedSolutionExplorerTree.Add(root2Folder);
+        private void AddManualEnvironment()
+        {
+            string url = Microsoft.VisualBasic.Interaction.InputBox(
+                "Enter target Dataverse Environment URL (e.g. https://myclient-dev.crm.dynamics.com):",
+                "Add Custom Environment URL",
+                "https://");
 
-            TotalItems = _lastResult.TotalCount;
-            IdenticalCount = _lastResult.IdenticalCount;
-            DeltaCount = _lastResult.DeltaCount;
-            UniqueCount = _lastResult.UniqueCount;
+            if (!string.IsNullOrWhiteSpace(url) && url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                string friendlyName = url.Replace("https://", "").Replace("http://", "").Split('.')[0];
+                
+                // Remove simulation defaults if present
+                var dummyItems = DiscoveredEnvironments.Where(e => e.Url.Contains("contoso-")).ToList();
+                foreach (var dummy in dummyItems)
+                {
+                    DiscoveredEnvironments.Remove(dummy);
+                }
 
-            StatusMessage = isSingleEnv
-                ? $"Exploration complete for {selectedEnvs[0].Name}. Total components: {TotalItems}."
-                : $"Comparison complete across {selectedEnvs.Count} environments. Found {_lastResult.DeltaCount} Deltas, {_lastResult.UniqueCount} Unique items.";
+                if (!DiscoveredEnvironments.Any(e => e.Url.Equals(url, StringComparison.OrdinalIgnoreCase)))
+                {
+                    DiscoveredEnvironments.Add(new SelectableEnv
+                    {
+                        Name = friendlyName,
+                        Url = url,
+                        IsSelected = true
+                    });
+
+                    StatusMessage = $"Added environment '{friendlyName}' ({url}). Select environments and click '🔄 Run Compare / Explore'.";
+                }
+            }
+        }
+
+        private void ToggleSelectAllEnvs()
+        {
+            if (DiscoveredEnvironments.Count == 0) return;
+            bool allSelected = DiscoveredEnvironments.All(e => e.IsSelected);
+            foreach (var env in DiscoveredEnvironments)
+            {
+                env.IsSelected = !allSelected;
+            }
         }
 
         private void SetTreeExpandedState(ObservableCollection<DiffNode> nodes, bool isExpanded)

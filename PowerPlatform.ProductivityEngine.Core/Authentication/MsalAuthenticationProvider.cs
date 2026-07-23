@@ -77,13 +77,17 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             return domain; // Fallback to domain name which MSAL resolves automatically
         }
 
-        public async Task<List<DiscoveredTenantEnv>> DiscoverEnvironmentsAsync()
+        public async Task<List<DiscoveredTenantEnv>> DiscoverEnvironmentsAsync(Action<string>? progressCallback = null)
         {
             var discoveredEnvs = new List<DiscoveredTenantEnv>();
+
+            progressCallback?.Invoke("Resolving Azure Tenant ID from user domain...");
 
             string effectiveTenant = string.IsNullOrWhiteSpace(TenantId)
                 ? await AutoDiscoverTenantIdAsync(PreferredUsername ?? "").ConfigureAwait(false)
                 : TenantId;
+
+            progressCallback?.Invoke($"Acquiring OAuth Token for tenant ({effectiveTenant})...");
 
             string authority = $"https://login.microsoftonline.com/{(string.IsNullOrWhiteSpace(effectiveTenant) ? "organizations" : effectiveTenant)}";
 
@@ -127,32 +131,84 @@ namespace PowerPlatform.ProductivityEngine.Core.Authentication
             string token = authResult.AccessToken;
             SetSharedSsoToken(token, authResult.ExpiresOn);
 
+            progressCallback?.Invoke("Querying Dataverse Global Discovery Service endpoints (v2.0 & v9.2)...");
+
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            var response = await httpClient.GetAsync("https://globaldisco.crm.dynamics.com/api/discovery/v9.2/Instances").ConfigureAwait(false);
-            if (response.IsSuccessStatusCode)
+            string[] endpoints = new[]
             {
-                using var doc = await response.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
-                if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
-                {
-                    foreach (var inst in value.EnumerateArray())
-                    {
-                        string name = inst.TryGetProperty("FriendlyName", out var fn) ? fn.GetString() ?? "" : "";
-                        string url = inst.TryGetProperty("ApiUrl", out var u) ? u.GetString() ?? "" : "";
-                        string id = inst.TryGetProperty("Id", out var i) ? i.GetString() ?? "" : "";
+                "https://globaldisco.crm.dynamics.com/api/discovery/v2.0/Instances",
+                "https://globaldisco.crm.dynamics.com/api/discovery/v9.2/Instances",
+                "https://globaldisco.crm.dynamics.com/api/discovery/v9.0/Instances"
+            };
 
-                        if (!string.IsNullOrEmpty(url))
+            HttpResponseMessage? lastResponse = null;
+
+            foreach (var endpoint in endpoints)
+            {
+                try
+                {
+                    var response = await httpClient.GetAsync(endpoint).ConfigureAwait(false);
+                    lastResponse = response;
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        using var doc = await response.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                        if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
                         {
-                            discoveredEnvs.Add(new DiscoveredTenantEnv
+                            foreach (var inst in value.EnumerateArray())
                             {
-                                Name = string.IsNullOrEmpty(name) ? url : name,
-                                Url = url,
-                                EnvironmentId = id
-                            });
+                                string name = inst.TryGetProperty("FriendlyName", out var fn) ? fn.GetString() ?? "" : "";
+                                string url = inst.TryGetProperty("ApiUrl", out var u) ? u.GetString() ?? "" : "";
+                                if (string.IsNullOrEmpty(url) && inst.TryGetProperty("Url", out var mainUrl))
+                                {
+                                    url = mainUrl.GetString() ?? "";
+                                }
+                                string id = inst.TryGetProperty("Id", out var i) ? i.GetString() ?? "" : "";
+                                if (string.IsNullOrEmpty(name) && inst.TryGetProperty("UniqueName", out var un))
+                                {
+                                    name = un.GetString() ?? "";
+                                }
+
+                                if (!string.IsNullOrEmpty(url))
+                                {
+                                    if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        url = "https://" + url;
+                                    }
+
+                                    if (!discoveredEnvs.Any(e => e.Url.Equals(url, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        discoveredEnvs.Add(new DiscoveredTenantEnv
+                                        {
+                                            Name = string.IsNullOrEmpty(name) ? url : name,
+                                            Url = url,
+                                            EnvironmentId = id
+                                        });
+                                    }
+                                }
+                            }
+
+                            if (discoveredEnvs.Count > 0)
+                            {
+                                progressCallback?.Invoke($"Discovered {discoveredEnvs.Count} tenant environments from Global Discovery Service.");
+                                break;
+                            }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    progressCallback?.Invoke($"Discovery endpoint {endpoint} notice: {ex.Message}");
+                }
+            }
+
+            if (discoveredEnvs.Count == 0 && lastResponse != null && !lastResponse.IsSuccessStatusCode)
+            {
+                string errBody = await lastResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                throw new InvalidOperationException($"Global Discovery endpoint returned status {(int)lastResponse.StatusCode} ({lastResponse.ReasonPhrase}). Details: {errBody}");
             }
 
             return discoveredEnvs;
