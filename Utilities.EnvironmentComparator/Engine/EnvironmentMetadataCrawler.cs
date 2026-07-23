@@ -42,9 +42,9 @@ namespace Utilities.EnvironmentComparator.Engine
             if (_useSimulationMode)
             {
                 await Task.Delay(300).ConfigureAwait(false);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling D365 Solution Explorer components & Solutions for {envName}...", PercentComplete = 50 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling 100% D365 non-transactional components for {envName}...", PercentComplete = 50 });
                 GenerateSimulationData(envName, rawData, scope);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed Solution Explorer crawl for {envName}.", PercentComplete = 100 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed 100% D365 crawl for {envName}.", PercentComplete = 100 });
                 return rawData;
             }
 
@@ -61,16 +61,16 @@ namespace Utilities.EnvironmentComparator.Engine
             progress?.Report(new ProgressUpdate { Stage = "Solutions Crawl", Message = $"[{envName}] Fetching Installed Solutions and D365 Apps...", PercentComplete = 20 });
             await CrawlSolutionsAndAppsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 3. Crawl Plug-ins & Steps (100% PRT Attributes)
+            // 3. Crawl Plug-ins & Custom APIs
             if (scope.ComparePluginsAndSteps)
             {
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies & Detailed Step Registrations...", PercentComplete = 35 });
-                await CrawlPluginsAsync(httpClient, rawData).ConfigureAwait(false);
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies, Steps, and Custom APIs...", PercentComplete = 35 });
+                await CrawlPluginsAndCustomApisAsync(httpClient, rawData).ConfigureAwait(false);
             }
 
-            // 4. Crawl Forms & Views
-            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Forms, Views, and Charts...", PercentComplete = 50 });
-            await CrawlFormsAndViewsAsync(httpClient, rawData).ConfigureAwait(false);
+            // 4. Crawl Forms, Views, Charts, & Ribbons
+            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Forms, Views, Charts, and Command Ribbons...", PercentComplete = 50 });
+            await CrawlFormsViewsAndRibbonsAsync(httpClient, rawData).ConfigureAwait(false);
 
             // 5. Crawl Environment Variables
             if (scope.CompareEnvironmentVariables)
@@ -130,7 +130,6 @@ namespace Utilities.EnvironmentComparator.Engine
         {
             try
             {
-                // Crawl Solutions (first-party and custom)
                 var resS = await client.GetAsync("solutions?$select=uniquename,friendlyname,version,ismanaged").ConfigureAwait(false);
                 if (resS.IsSuccessStatusCode)
                 {
@@ -152,7 +151,6 @@ namespace Utilities.EnvironmentComparator.Engine
                     }
                 }
 
-                // Crawl Installed Apps (appmodule)
                 var resA = await client.GetAsync("appmodules?$select=name,uniquename,versionnumber,statecode").ConfigureAwait(false);
                 if (resA.IsSuccessStatusCode)
                 {
@@ -177,7 +175,7 @@ namespace Utilities.EnvironmentComparator.Engine
             catch { }
         }
 
-        private async Task CrawlPluginsAsync(HttpClient client, RawEnvData rawData)
+        private async Task CrawlPluginsAndCustomApisAsync(HttpClient client, RawEnvData rawData)
         {
             try
             {
@@ -203,7 +201,6 @@ namespace Utilities.EnvironmentComparator.Engine
                     }
                 }
 
-                // Crawl Plug-in Processing Steps with 100% attributes
                 var resSteps = await client.GetAsync("sdkmessageprocessingsteps?$select=name,description,stage,mode,rank,statecode,filteringattributes,asyncautodelete,supporteddeployment,unsecureconfiguration").ConfigureAwait(false);
                 if (resSteps.IsSuccessStatusCode)
                 {
@@ -230,11 +227,35 @@ namespace Utilities.EnvironmentComparator.Engine
                         }
                     }
                 }
+
+                // Crawl Custom APIs (customapi)
+                var resApi = await client.GetAsync("customapis?$select=uniquename,displayname,bindingtype,boundentityname,isfunction,isprivate").ConfigureAwait(false);
+                if (resApi.IsSuccessStatusCode)
+                {
+                    using var doc = await resApi.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var api in value.EnumerateArray())
+                        {
+                            string uniqueName = api.TryGetProperty("uniquename", out var u) ? u.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(uniqueName)) continue;
+
+                            rawData.MetadataItems[$"CustomAPI.{uniqueName}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = api.TryGetProperty("displayname", out var d) ? d.GetString() ?? "" : "",
+                                ["BindingType"] = api.TryGetProperty("bindingtype", out var bt) ? bt.GetInt32().ToString() : "0",
+                                ["BoundEntity"] = api.TryGetProperty("boundentityname", out var be) ? be.GetString() ?? "Global" : "Global",
+                                ["IsFunction"] = api.TryGetProperty("isfunction", out var isf) ? isf.GetBoolean().ToString() : "False",
+                                ["IsPrivate"] = api.TryGetProperty("isprivate", out var isp) ? isp.GetBoolean().ToString() : "False"
+                            };
+                        }
+                    }
+                }
             }
             catch { }
         }
 
-        private async Task CrawlFormsAndViewsAsync(HttpClient client, RawEnvData rawData)
+        private async Task CrawlFormsViewsAndRibbonsAsync(HttpClient client, RawEnvData rawData)
         {
             try
             {
@@ -398,7 +419,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["State"] = "Active"
             };
 
-            // 3. Plug-in Assemblies & 100% PRT Attributes
+            // 3. Plug-in Assemblies & Custom APIs
             rawData.MetadataItems["PluginAssembly.AccountPlugin.dll"] = new Dictionary<string, string>
             {
                 ["Version"] = (isDev || isTest) ? "1.2.0.0" : "1.1.0.0",
@@ -419,6 +440,15 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["AsyncAutoDelete"] = "False",
                 ["PreImages"] = "PreImage_Account (name, telephone1)",
                 ["PostImages"] = "PostImage_Account (accountid, name)"
+            };
+
+            rawData.MetadataItems["CustomAPI.new_CalculateDiscount"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Calculate Tiered Discount Custom API",
+                ["BindingType"] = "Global (0)",
+                ["BoundEntity"] = "Global",
+                ["IsFunction"] = "True",
+                ["IsPrivate"] = "False"
             };
 
             // 4. Entity Forms & Views

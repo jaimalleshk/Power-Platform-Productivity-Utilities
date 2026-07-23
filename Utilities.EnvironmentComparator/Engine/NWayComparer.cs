@@ -131,15 +131,16 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(entitiesFolder);
             }
 
-            // Group 2: Plug-in Assemblies & Processing Steps
-            var pluginNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Plugin", StringComparison.OrdinalIgnoreCase)).ToList();
+            // Group 2: Plug-in Assemblies, Registration Steps, & Custom APIs
+            var pluginNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Plugin", StringComparison.OrdinalIgnoreCase) || 
+                                                   n.SubCategory.Equals("CustomAPI", StringComparison.OrdinalIgnoreCase)).ToList();
             if (pluginNodes.Count > 0)
             {
                 var pluginsFolder = new DiffNode
                 {
                     RootCategory = RootCategory.MetadataCustomizations,
                     SubCategory = "Folder",
-                    DisplayName = "📁 Plug-in Assemblies & Registration Steps (100% PRT Attributes)",
+                    DisplayName = "📁 Plug-in Assemblies, Registration Steps, & Custom APIs",
                     UniqueKey = "Folder.Plugins"
                 };
                 foreach (var n in pluginNodes) pluginsFolder.Children.Add(n);
