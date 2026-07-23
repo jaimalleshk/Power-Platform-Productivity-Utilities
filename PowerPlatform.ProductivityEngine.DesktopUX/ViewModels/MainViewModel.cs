@@ -460,6 +460,102 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             AddEnvironmentToList("contoso-dev", "https://contoso-dev.crm.dynamics.com", true, isAdmin: true);
             AddEnvironmentToList("contoso-test", "https://contoso-test.crm.dynamics.com", true, isAdmin: false);
             AddEnvironmentToList("contoso-prod", "https://contoso-prod.crm.dynamics.com", true, isAdmin: false);
+
+            InitializeDefaultSolutionExplorerTree();
+        }
+
+        private void InitializeDefaultSolutionExplorerTree()
+        {
+            UnifiedSolutionExplorerTree.Clear();
+
+            var root1Folder = new DiffNode
+            {
+                RootCategory = RootCategory.AdminSettings,
+                SubCategory = "Folder",
+                DisplayName = "⚙️ Root 1: Admin & Environment Settings",
+                UniqueKey = "Root1.AdminSettings",
+                IsExpanded = true,
+                IsChecked = true
+            };
+
+            root1Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.AdminSettings,
+                SubCategory = "OrgDbSettings",
+                DisplayName = "⚙️ Organization Database Settings (OrgDbOrgSettings)",
+                UniqueKey = "Root1.OrgDbSettings",
+                IsChecked = true
+            });
+            root1Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.AdminSettings,
+                SubCategory = "EnvVars",
+                DisplayName = "🔑 Environment Variables & Azure KeyVault Secrets",
+                UniqueKey = "Root1.EnvVars",
+                IsChecked = true
+            });
+            root1Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.AdminSettings,
+                SubCategory = "FeatureFlags",
+                DisplayName = "🛡️ Tenant Feature Flags & Security Governance",
+                UniqueKey = "Root1.FeatureFlags",
+                IsChecked = true
+            });
+
+            var root2Folder = new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "Folder",
+                DisplayName = "📦 Root 2: Solution & Metadata Customizations",
+                UniqueKey = "Root2.MetadataCustomizations",
+                IsExpanded = true,
+                IsChecked = true
+            };
+
+            root2Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "Tables",
+                DisplayName = "📊 Dataverse Tables & Schema Customizations (Entities/Columns)",
+                UniqueKey = "Root2.Tables",
+                IsChecked = true
+            });
+            root2Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "Workflows",
+                DisplayName = "⚡ Workflows, Power Automate & Cloud Flows",
+                UniqueKey = "Root2.Workflows",
+                IsChecked = true
+            });
+            root2Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "PluginAssemblies",
+                DisplayName = "🧩 Plugin Assemblies, Custom Steps & SDK Messages",
+                UniqueKey = "Root2.Plugins",
+                IsChecked = true
+            });
+            root2Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "SecurityRoles",
+                DisplayName = "🔐 Security Roles & Table Privileges",
+                UniqueKey = "Root2.SecurityRoles",
+                IsChecked = true
+            });
+            root2Folder.Children.Add(new DiffNode
+            {
+                RootCategory = RootCategory.MetadataCustomizations,
+                SubCategory = "WebResources",
+                DisplayName = "🌐 Web Resources (JavaScript, HTML, CSS)",
+                UniqueKey = "Root2.WebResources",
+                IsChecked = true
+            });
+
+            UnifiedSolutionExplorerTree.Add(root1Folder);
+            UnifiedSolutionExplorerTree.Add(root2Folder);
         }
 
         public void OpenModuleTab(string moduleKey)

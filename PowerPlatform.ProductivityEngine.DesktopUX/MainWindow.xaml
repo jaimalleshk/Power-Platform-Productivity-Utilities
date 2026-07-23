@@ -126,8 +126,6 @@
                                                 </ComboBox>
 
                                                 <Button Content="🛡️ Check if Admin" Command="{Binding DataContext.CheckAdminAccessCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#4338CA" Foreground="White" FontWeight="Bold" Padding="10,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0" ToolTip="Check System Administrator role access across tenant environments"/>
-                                                <Button Content="☑️ Select All" Command="{Binding DataContext.SelectAllEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="8,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
-                                                <Button Content="🔲 Select None" Command="{Binding DataContext.SelectNoneEnvsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#334155" Foreground="White" Padding="8,5" Margin="0,0,6,0" FontSize="11" BorderThickness="0"/>
                                                 <Button Content="➕ Add Env URL" Command="{Binding DataContext.AddManualEnvCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="8,5" FontSize="11" BorderThickness="0"/>
                                             </StackPanel>
                                         </DockPanel>
@@ -148,7 +146,6 @@
                                                                 <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
                                                             <DockPanel Grid.Row="0" LastChildFill="True">
-                                                                <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <Button Content="ℹ️ More Info" Command="{Binding DataContext.OpenEnvDetailsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" DockPanel.Dock="Right" Background="#334155" Foreground="#38BDF8" FontSize="10" Padding="6,2" VerticalAlignment="Top" BorderThickness="0" Cursor="Hand" ToolTip="View assigned security roles and detailed environment metadata"/>
                                                                 <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="14" TextTrimming="CharacterEllipsis">
                                                                     <TextBlock.Style>
@@ -163,7 +160,7 @@
                                                                     </TextBlock.Style>
                                                                 </TextBlock>
                                                             </DockPanel>
-                                                            <TextBlock Grid.Row="1" Text="{Binding Url}" Foreground="#38BDF8" FontSize="12" Margin="26,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Row="1" Text="{Binding Url}" Foreground="#38BDF8" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
                                                         </Grid>
                                                     </Border>
                                                 </DataTemplate>
@@ -405,10 +402,31 @@
                                 </Style>
                             </Grid.Style>
 
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="450"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- TOP COMPARATOR ACTION BAR -->
+                            <Border Grid.Row="0" Background="#1E293B" CornerRadius="8" Padding="12,8" Margin="0,0,0,10" BorderBrush="#334155" BorderThickness="1">
+                                <DockPanel LastChildFill="False">
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                        <TextBlock Text="🔄 ENVIRONMENT COMPARATOR &amp; EXPLODED TREE EXPLORER" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                        <TextBlock Text="Select target environments &amp; check components to compare" Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                        <Button Content="🚀 RUN COMPARISON ON CHECKED ITEMS" Command="{Binding DataContext.CompareEnvironmentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#166534" Foreground="White" FontWeight="Bold" Padding="14,6" Margin="0,0,8,0" FontSize="12" BorderThickness="0" Cursor="Hand" ToolTip="Execute N-Way comparison on checked tree items across selected environments"/>
+                                        <Button Content="☑️ Select All Tree" Command="{Binding DataContext.SelectAllTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="8,6" Margin="0,0,4,0" FontSize="11" BorderThickness="0"/>
+                                        <Button Content="🔲 Select None Tree" Command="{Binding DataContext.SelectNoneTreeNodesCommand, RelativeSource={RelativeSource AncestorType=Window}}" Background="#475569" Foreground="White" Padding="8,6" FontSize="11" BorderThickness="0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="450"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
                             <Border Grid.Column="0" Background="#1E293B" CornerRadius="8" Padding="12" Margin="0,0,12,0" BorderBrush="#334155" BorderThickness="1">
                                 <Grid>
@@ -554,6 +572,7 @@
                                     </TabControl>
                                 </Grid>
                             </Border>
+                            </Grid>
                         </Grid>
 
                         <!-- TEMPLATE 2: MODULE 2 (DEEP VALIDATOR) -->
