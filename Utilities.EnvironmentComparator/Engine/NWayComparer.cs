@@ -78,19 +78,51 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(solFolder);
             }
 
-            // Group 0B: Installed D365 Apps
-            var appNodes = flatNodes.Where(n => n.SubCategory.Equals("InstalledApp", StringComparison.OrdinalIgnoreCase)).ToList();
+            // Group 0B: Installed D365 & Canvas Apps
+            var appNodes = flatNodes.Where(n => n.SubCategory.Equals("InstalledApp", StringComparison.OrdinalIgnoreCase) || 
+                                                n.SubCategory.Equals("CanvasApp", StringComparison.OrdinalIgnoreCase)).ToList();
             if (appNodes.Count > 0)
             {
                 var appFolder = new DiffNode
                 {
                     RootCategory = RootCategory.MetadataCustomizations,
                     SubCategory = "Folder",
-                    DisplayName = "📁 Installed Dynamics 365 & Power Apps",
+                    DisplayName = "📁 Installed D365 Apps & Canvas Apps",
                     UniqueKey = "Folder.Apps"
                 };
                 foreach (var n in appNodes) appFolder.Children.Add(n);
                 rootNodes.Add(appFolder);
+            }
+
+            // Group 0C: Copilot Studio Bots & Topics
+            var copilotNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Copilot", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (copilotNodes.Count > 0)
+            {
+                var copilotFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "🤖 Copilot Studio Bots, Topics, & Knowledge Sources",
+                    UniqueKey = "Folder.Copilot"
+                };
+                foreach (var n in copilotNodes) copilotFolder.Children.Add(n);
+                rootNodes.Add(copilotFolder);
+            }
+
+            // Group 0D: Connection References & Custom Connectors
+            var connRefNodes = flatNodes.Where(n => n.SubCategory.Equals("ConnectionReference", StringComparison.OrdinalIgnoreCase) || 
+                                                    n.SubCategory.Equals("CustomConnector", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (connRefNodes.Count > 0)
+            {
+                var connRefFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "🔗 Connection References & Custom Connectors",
+                    UniqueKey = "Folder.ConnectionReferences"
+                };
+                foreach (var n in connRefNodes) connRefFolder.Children.Add(n);
+                rootNodes.Add(connRefFolder);
             }
 
             // Group 1: Entities / Tables Hierarchy
@@ -180,7 +212,7 @@ namespace Utilities.EnvironmentComparator.Engine
             }
 
             // Remaining components
-            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
+            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
             var otherNodes = flatNodes.Where(n => !handledKeys.Contains(n.UniqueKey)).ToList();
             if (otherNodes.Count > 0)
             {

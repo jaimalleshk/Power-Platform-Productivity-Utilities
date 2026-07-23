@@ -42,9 +42,9 @@ namespace Utilities.EnvironmentComparator.Engine
             if (_useSimulationMode)
             {
                 await Task.Delay(300).ConfigureAwait(false);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling 100% D365 non-transactional components for {envName}...", PercentComplete = 50 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Crawling 100% Power Platform & Copilot Studio components for {envName}...", PercentComplete = 50 });
                 GenerateSimulationData(envName, rawData, scope);
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed 100% D365 crawl for {envName}.", PercentComplete = 100 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[SIMULATION] Completed Power Platform & Copilot Studio crawl for {envName}.", PercentComplete = 100 });
                 return rawData;
             }
 
@@ -61,39 +61,40 @@ namespace Utilities.EnvironmentComparator.Engine
             progress?.Report(new ProgressUpdate { Stage = "Solutions Crawl", Message = $"[{envName}] Fetching Installed Solutions and D365 Apps...", PercentComplete = 20 });
             await CrawlSolutionsAndAppsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 3. Crawl Plug-ins & Custom APIs
+            // 3. Crawl Connection References & Custom Connectors
+            progress?.Report(new ProgressUpdate { Stage = "Connectors Crawl", Message = $"[{envName}] Fetching Connection References & Custom Connectors...", PercentComplete = 30 });
+            await CrawlConnectionReferencesAndConnectorsAsync(httpClient, rawData).ConfigureAwait(false);
+
+            // 4. Crawl Copilot Studio Bots & Topics
+            progress?.Report(new ProgressUpdate { Stage = "Copilot Studio Crawl", Message = $"[{envName}] Fetching Copilot Studio Bots, Topics, & Knowledge Sources...", PercentComplete = 45 });
+            await CrawlCopilotStudioAsync(httpClient, rawData).ConfigureAwait(false);
+
+            // 5. Crawl Plug-ins & Custom APIs
             if (scope.ComparePluginsAndSteps)
             {
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies, Steps, and Custom APIs...", PercentComplete = 35 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Plug-in Assemblies, Steps, and Custom APIs...", PercentComplete = 60 });
                 await CrawlPluginsAndCustomApisAsync(httpClient, rawData).ConfigureAwait(false);
             }
 
-            // 4. Crawl Forms, Views, Charts, & Ribbons
-            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Forms, Views, Charts, and Command Ribbons...", PercentComplete = 50 });
-            await CrawlFormsViewsAndRibbonsAsync(httpClient, rawData).ConfigureAwait(false);
+            // 6. Crawl Forms, Views, & Canvas Apps
+            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Forms, Views, and Canvas Apps...", PercentComplete = 75 });
+            await CrawlFormsViewsAndCanvasAppsAsync(httpClient, rawData).ConfigureAwait(false);
 
-            // 5. Crawl Environment Variables
+            // 7. Crawl Environment Variables
             if (scope.CompareEnvironmentVariables)
             {
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Environment Variable Definitions & Values...", PercentComplete = 65 });
+                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Environment Variable Definitions & Values...", PercentComplete = 85 });
                 await CrawlEnvVariablesAsync(httpClient, rawData).ConfigureAwait(false);
             }
 
-            // 6. Crawl Cloud Flows & Workflows & Business Rules
-            if (scope.CompareCloudFlowsAndWorkflows)
-            {
-                progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Flows, Classic Workflows, BPFs, and Business Rules...", PercentComplete = 80 });
-                await CrawlFlowsAsync(httpClient, rawData).ConfigureAwait(false);
-            }
-
-            // 7. Crawl Tables & Columns
+            // 8. Crawl Tables & Columns
             if (scope.CompareTablesAndColumns)
             {
                 progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Fetching Entity Definitions and Attributes...", PercentComplete = 95 });
                 await CrawlTablesAsync(httpClient, rawData).ConfigureAwait(false);
             }
 
-            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Completed full D365 non-transactional metadata crawl.", PercentComplete = 100 });
+            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Completed 100% Power Platform & Copilot Studio crawl.", PercentComplete = 100 });
             return rawData;
         }
 
@@ -175,6 +176,106 @@ namespace Utilities.EnvironmentComparator.Engine
             catch { }
         }
 
+        private async Task CrawlConnectionReferencesAndConnectorsAsync(HttpClient client, RawEnvData rawData)
+        {
+            try
+            {
+                // Crawl Connection References (connectionreference)
+                var resCR = await client.GetAsync("connectionreferences?$select=connectionreferencelogicalname,displayname,connectorid,connectionid").ConfigureAwait(false);
+                if (resCR.IsSuccessStatusCode)
+                {
+                    using var doc = await resCR.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var cr in value.EnumerateArray())
+                        {
+                            string logicalName = cr.TryGetProperty("connectionreferencelogicalname", out var l) ? l.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(logicalName)) continue;
+
+                            rawData.MetadataItems[$"ConnectionReference.{logicalName}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = cr.TryGetProperty("displayname", out var d) ? d.GetString() ?? "" : "",
+                                ["ConnectorId"] = cr.TryGetProperty("connectorid", out var c) ? c.GetString() ?? "" : "",
+                                ["ConnectionId"] = cr.TryGetProperty("connectionid", out var conn) ? conn.GetString() ?? "Bound" : "Bound"
+                            };
+                        }
+                    }
+                }
+
+                // Crawl Custom Connectors (connector)
+                var resConn = await client.GetAsync("connectors?$select=name,displayname").ConfigureAwait(false);
+                if (resConn.IsSuccessStatusCode)
+                {
+                    using var doc = await resConn.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var conn in value.EnumerateArray())
+                        {
+                            string name = conn.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            rawData.MetadataItems[$"CustomConnector.{name}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = conn.TryGetProperty("displayname", out var d) ? d.GetString() ?? "" : ""
+                            };
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private async Task CrawlCopilotStudioAsync(HttpClient client, RawEnvData rawData)
+        {
+            try
+            {
+                // Crawl Copilot Studio Bots (bot entity)
+                var resBot = await client.GetAsync("bots?$select=name,schemaname,language,statecode").ConfigureAwait(false);
+                if (resBot.IsSuccessStatusCode)
+                {
+                    using var doc = await resBot.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var bot in value.EnumerateArray())
+                        {
+                            string schema = bot.TryGetProperty("schemaname", out var s) ? s.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(schema)) continue;
+
+                            rawData.MetadataItems[$"CopilotBot.{schema}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = bot.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                                ["Language"] = bot.TryGetProperty("language", out var l) ? l.GetInt32().ToString() : "1033",
+                                ["State"] = bot.TryGetProperty("statecode", out var st) && st.GetInt32() == 0 ? "Active" : "Inactive"
+                            };
+                        }
+                    }
+                }
+
+                // Crawl Copilot Topics & Components (botcomponent entity)
+                var resComp = await client.GetAsync("botcomponents?$select=name,schemaname,componenttype,content").ConfigureAwait(false);
+                if (resComp.IsSuccessStatusCode)
+                {
+                    using var doc = await resComp.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var comp in value.EnumerateArray())
+                        {
+                            string schema = comp.TryGetProperty("schemaname", out var s) ? s.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(schema)) continue;
+
+                            rawData.MetadataItems[$"CopilotTopic.{schema}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = comp.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                                ["ComponentType"] = comp.TryGetProperty("componenttype", out var ct) ? ct.GetInt32().ToString() : "0",
+                                ["ContentLength"] = comp.TryGetProperty("content", out var cnt) ? (cnt.GetString()?.Length ?? 0).ToString() : "0"
+                            };
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
         private async Task CrawlPluginsAndCustomApisAsync(HttpClient client, RawEnvData rawData)
         {
             try
@@ -228,7 +329,6 @@ namespace Utilities.EnvironmentComparator.Engine
                     }
                 }
 
-                // Crawl Custom APIs (customapi)
                 var resApi = await client.GetAsync("customapis?$select=uniquename,displayname,bindingtype,boundentityname,isfunction,isprivate").ConfigureAwait(false);
                 if (resApi.IsSuccessStatusCode)
                 {
@@ -255,7 +355,7 @@ namespace Utilities.EnvironmentComparator.Engine
             catch { }
         }
 
-        private async Task CrawlFormsViewsAndRibbonsAsync(HttpClient client, RawEnvData rawData)
+        private async Task CrawlFormsViewsAndCanvasAppsAsync(HttpClient client, RawEnvData rawData)
         {
             try
             {
@@ -300,6 +400,27 @@ namespace Utilities.EnvironmentComparator.Engine
                         }
                     }
                 }
+
+                // Crawl Canvas Apps (canvasapp)
+                var resC = await client.GetAsync("canvasapps?$select=name,displayname,appversion").ConfigureAwait(false);
+                if (resC.IsSuccessStatusCode)
+                {
+                    using var doc = await resC.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
+                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
+                    {
+                        foreach (var c in value.EnumerateArray())
+                        {
+                            string name = c.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            rawData.MetadataItems[$"CanvasApp.{name}"] = new Dictionary<string, string>
+                            {
+                                ["DisplayName"] = c.TryGetProperty("displayname", out var d) ? d.GetString() ?? "" : "",
+                                ["Version"] = c.TryGetProperty("appversion", out var v) ? v.GetString() ?? "" : ""
+                            };
+                        }
+                    }
+                }
             }
             catch { }
         }
@@ -323,43 +444,6 @@ namespace Utilities.EnvironmentComparator.Engine
                             {
                                 ["DefaultValue"] = def.TryGetProperty("defaultvalue", out var dv) ? dv.GetString() ?? "" : "",
                                 ["Type"] = def.TryGetProperty("type", out var t) ? t.GetInt32().ToString() : "0"
-                            };
-                        }
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private async Task CrawlFlowsAsync(HttpClient client, RawEnvData rawData)
-        {
-            try
-            {
-                var res = await client.GetAsync("workflows?$select=name,category,statecode,mode").ConfigureAwait(false);
-                if (res.IsSuccessStatusCode)
-                {
-                    using var doc = await res.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
-                    if (doc != null && doc.RootElement.TryGetProperty("value", out var value))
-                    {
-                        foreach (var wf in value.EnumerateArray())
-                        {
-                            string name = wf.GetProperty("name").GetString() ?? "";
-                            if (string.IsNullOrEmpty(name)) continue;
-                            int category = wf.TryGetProperty("category", out var cat) ? cat.GetInt32() : 0;
-
-                            string prefix = category switch
-                            {
-                                6 => "CloudFlow",
-                                2 => "BusinessRule",
-                                4 => "BusinessProcessFlow",
-                                3 => "Action",
-                                _ => "ClassicWorkflow"
-                            };
-
-                            rawData.MetadataItems[$"{prefix}.{name}"] = new Dictionary<string, string>
-                            {
-                                ["State"] = wf.TryGetProperty("statecode", out var st) && st.GetInt32() == 1 ? "Activated" : "Draft",
-                                ["Mode"] = wf.TryGetProperty("mode", out var m) ? m.GetInt32().ToString() : "1"
                             };
                         }
                     }
@@ -419,7 +503,36 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["State"] = "Active"
             };
 
-            // 3. Plug-in Assemblies & Custom APIs
+            // 3. Connection References & Custom Connectors
+            rawData.MetadataItems["ConnectionReference.new_shared_sharepointonline"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "SharePoint Online Connection Reference",
+                ["ConnectorId"] = "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                ["ConnectionId"] = isDev ? "dev-sp-conn-123" : (isTest ? "test-sp-conn-456" : "prod-sp-conn-789")
+            };
+
+            rawData.MetadataItems["CustomConnector.new_ERP_Payment_Connector"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "ERP Payment Gateway Connector",
+                ["Version"] = "1.0.0.0"
+            };
+
+            // 4. Copilot Studio Bots & Topics
+            rawData.MetadataItems["CopilotBot.new_CustomerSupportCopilot"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Customer Support Copilot",
+                ["Language"] = "English (1033)",
+                ["State"] = "Active"
+            };
+
+            rawData.MetadataItems["CopilotTopic.new_Topic_OrderTracking"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Order Status & Tracking Topic",
+                ["ComponentType"] = "Topic (0)",
+                ["ContentLength"] = isDev ? "2450" : "1890"
+            };
+
+            // 5. Plug-in Assemblies & Custom APIs
             rawData.MetadataItems["PluginAssembly.AccountPlugin.dll"] = new Dictionary<string, string>
             {
                 ["Version"] = (isDev || isTest) ? "1.2.0.0" : "1.1.0.0",
@@ -451,7 +564,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["IsPrivate"] = "False"
             };
 
-            // 4. Entity Forms & Views
+            // 6. Entity Forms & Views & Canvas Apps
             rawData.MetadataItems["EntityForm.account.Information Main Form"] = new Dictionary<string, string>
             {
                 ["FormType"] = "Main (2)",
@@ -466,7 +579,13 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["SortField"] = "name ASC"
             };
 
-            // 5. Business Rules & Automations
+            rawData.MetadataItems["CanvasApp.new_FieldServiceInspectorApp"] = new Dictionary<string, string>
+            {
+                ["DisplayName"] = "Field Service Inspector App",
+                ["Version"] = isDev ? "v1.4" : "v1.2"
+            };
+
+            // 7. Business Rules & Automations
             rawData.MetadataItems["BusinessRule.account.Require TaxId for Enterprise"] = new Dictionary<string, string>
             {
                 ["Status"] = "Activated",
@@ -479,21 +598,14 @@ namespace Utilities.EnvironmentComparator.Engine
                 ["StagesCount"] = "4"
             };
 
-            // 6. Environment Variables
+            // 8. Environment Variables
             rawData.MetadataItems["EnvVariable.new_PaymentApiUrl"] = new Dictionary<string, string>
             {
                 ["Value"] = isDev ? "https://dev.api.payments.com" : (isTest ? "https://test.api.payments.com" : "https://prod.api.payments.com"),
                 ["Type"] = "String"
             };
 
-            // 7. Cloud Flows
-            rawData.MetadataItems["CloudFlow.ProcessOrderNotification"] = new Dictionary<string, string>
-            {
-                ["Status"] = "Started",
-                ["Category"] = "Modern Cloud Flow"
-            };
-
-            // 8. Tables & Columns Schema
+            // 9. Tables & Columns Schema
             rawData.MetadataItems["TableColumn.account.new_customer_code"] = new Dictionary<string, string>
             {
                 ["Type"] = "String",
