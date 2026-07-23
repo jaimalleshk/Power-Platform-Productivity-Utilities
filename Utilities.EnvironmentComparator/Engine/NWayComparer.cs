@@ -78,23 +78,54 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(solFolder);
             }
 
-            // Group 0B: Installed D365 & Canvas Apps
+            // Group 0B: Installed D365 Apps, Canvas Apps, & Custom Pages
             var appNodes = flatNodes.Where(n => n.SubCategory.Equals("InstalledApp", StringComparison.OrdinalIgnoreCase) || 
-                                                n.SubCategory.Equals("CanvasApp", StringComparison.OrdinalIgnoreCase)).ToList();
+                                                n.SubCategory.Equals("CanvasApp", StringComparison.OrdinalIgnoreCase) ||
+                                                n.SubCategory.Equals("CustomPage", StringComparison.OrdinalIgnoreCase)).ToList();
             if (appNodes.Count > 0)
             {
                 var appFolder = new DiffNode
                 {
                     RootCategory = RootCategory.MetadataCustomizations,
                     SubCategory = "Folder",
-                    DisplayName = "📁 Installed D365 Apps & Canvas Apps",
+                    DisplayName = "📱 Model-Driven Apps, Canvas Apps, & Custom Pages",
                     UniqueKey = "Folder.Apps"
                 };
                 foreach (var n in appNodes) appFolder.Children.Add(n);
                 rootNodes.Add(appFolder);
             }
 
-            // Group 0C: Copilot Studio Bots & Topics
+            // Group 0C: PCF Controls (PowerApps Component Framework)
+            var pcfNodes = flatNodes.Where(n => n.SubCategory.StartsWith("PcfControl", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (pcfNodes.Count > 0)
+            {
+                var pcfFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "🧩 PCF Controls (PowerApps Component Framework)",
+                    UniqueKey = "Folder.PcfControls"
+                };
+                foreach (var n in pcfNodes) pcfFolder.Children.Add(n);
+                rootNodes.Add(pcfFolder);
+            }
+
+            // Group 0D: Site Maps & Navigation Menus
+            var sitemapNodes = flatNodes.Where(n => n.SubCategory.StartsWith("SiteMap", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (sitemapNodes.Count > 0)
+            {
+                var sitemapFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "🧭 Site Maps & Application Navigation",
+                    UniqueKey = "Folder.SiteMaps"
+                };
+                foreach (var n in sitemapNodes) sitemapFolder.Children.Add(n);
+                rootNodes.Add(sitemapFolder);
+            }
+
+            // Group 0E: Copilot Studio Bots & Topics
             var copilotNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Copilot", StringComparison.OrdinalIgnoreCase)).ToList();
             if (copilotNodes.Count > 0)
             {
@@ -109,7 +140,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(copilotFolder);
             }
 
-            // Group 0D: Connection References & Custom Connectors
+            // Group 0F: Connection References & Custom Connectors
             var connRefNodes = flatNodes.Where(n => n.SubCategory.Equals("ConnectionReference", StringComparison.OrdinalIgnoreCase) || 
                                                     n.SubCategory.Equals("CustomConnector", StringComparison.OrdinalIgnoreCase)).ToList();
             if (connRefNodes.Count > 0)
@@ -125,7 +156,7 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(connRefFolder);
             }
 
-            // Group 0E: Field Security Profiles & Field Permissions
+            // Group 0G: Field Security Profiles & Field Permissions
             var fspNodes = flatNodes.Where(n => n.SubCategory.StartsWith("FieldSecurity", StringComparison.OrdinalIgnoreCase) || 
                                                 n.SubCategory.StartsWith("FieldPermission", StringComparison.OrdinalIgnoreCase)).ToList();
             if (fspNodes.Count > 0)
@@ -228,7 +259,7 @@ namespace Utilities.EnvironmentComparator.Engine
             }
 
             // Remaining components
-            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(fspNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
+            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(pcfNodes).Concat(sitemapNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(fspNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
             var otherNodes = flatNodes.Where(n => !handledKeys.Contains(n.UniqueKey)).ToList();
             if (otherNodes.Count > 0)
             {
@@ -282,9 +313,10 @@ namespace Utilities.EnvironmentComparator.Engine
                     string summaryVal = props.TryGetValue("Value", out var v) ? v : 
                         (props.TryGetValue("Version", out var ver) ? ver : 
                         (props.TryGetValue("Status", out var st) ? st : 
+                        (props.TryGetValue("Format", out var fmt) ? fmt : 
                         (props.TryGetValue("FormType", out var ft) ? ft : 
                         (props.TryGetValue("QueryType", out var qt) ? qt : 
-                        (props.TryGetValue("MaxLength", out var ml) ? $"MaxLength={ml}" : "Present")))));
+                        (props.TryGetValue("MaxLength", out var ml) ? $"MaxLength={ml}" : "Present"))))));
 
                     envSummaries[env.EnvironmentName] = summaryVal;
 
