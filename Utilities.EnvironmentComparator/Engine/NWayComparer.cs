@@ -125,6 +125,22 @@ namespace Utilities.EnvironmentComparator.Engine
                 rootNodes.Add(connRefFolder);
             }
 
+            // Group 0E: Field Security Profiles & Field Permissions
+            var fspNodes = flatNodes.Where(n => n.SubCategory.StartsWith("FieldSecurity", StringComparison.OrdinalIgnoreCase) || 
+                                                n.SubCategory.StartsWith("FieldPermission", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (fspNodes.Count > 0)
+            {
+                var fspFolder = new DiffNode
+                {
+                    RootCategory = RootCategory.MetadataCustomizations,
+                    SubCategory = "Folder",
+                    DisplayName = "🔐 Field Security Profiles & Field Permissions",
+                    UniqueKey = "Folder.FieldSecurity"
+                };
+                foreach (var n in fspNodes) fspFolder.Children.Add(n);
+                rootNodes.Add(fspFolder);
+            }
+
             // Group 1: Entities / Tables Hierarchy
             var entityNodes = flatNodes.Where(n => n.SubCategory.StartsWith("Entity", StringComparison.OrdinalIgnoreCase) || 
                                                   n.SubCategory.Equals("TableColumn", StringComparison.OrdinalIgnoreCase) || 
@@ -212,7 +228,7 @@ namespace Utilities.EnvironmentComparator.Engine
             }
 
             // Remaining components
-            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
+            var handledKeys = new HashSet<string>(solNodes.Concat(appNodes).Concat(copilotNodes).Concat(connRefNodes).Concat(fspNodes).Concat(entityNodes).Concat(pluginNodes).Concat(processNodes).Concat(envVarNodes).Select(n => n.UniqueKey));
             var otherNodes = flatNodes.Where(n => !handledKeys.Contains(n.UniqueKey)).ToList();
             if (otherNodes.Count > 0)
             {
