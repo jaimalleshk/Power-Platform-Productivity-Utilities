@@ -6,8 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text.Json;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -108,18 +108,60 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
     }
 
+    public enum ModuleType
+    {
+        LandingPage,
+        Comparator,
+        DeepValidator,
+        SolutionRepair,
+        SecurityRoleManager,
+        WebResourceSync,
+        PluginDiff
+    }
+
+    public class WorkspaceTabItem : INotifyPropertyChanged
+    {
+        private string _title = string.Empty;
+        private bool _canClose = true;
+
+        public string Title
+        {
+            get => _title;
+            set { _title = value; OnPropertyChanged(); }
+        }
+
+        public ModuleType Type { get; set; }
+        public bool CanClose { get => _canClose; set { _canClose = value; OnPropertyChanged(); } }
+        public ICommand CloseCommand { get; set; }
+
+        public WorkspaceTabItem(string title, ModuleType type, bool canClose, Action<WorkspaceTabItem> onClose)
+        {
+            Title = title;
+            Type = type;
+            CanClose = canClose;
+            CloseCommand = new RelayCommand(_ => onClose(this));
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? propName = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
+    }
+
     public class MainViewModel : INotifyPropertyChanged
     {
         // General State
-        private int _selectedModuleIndex = 0;
+        private int _selectedTabIndex = 0;
         private bool _isSimulationMode = false;
         private bool _isLoading = false;
         private double _progressPercentage = 0;
         private string _progressDetails = string.Empty;
-        private string _statusMessage = "Ready. Select a module tab or click 'Discover Envs (OAuth)' to begin.";
+        private string _statusMessage = "Ready. Welcome to Power Platform Productivity Engine!";
         private string _userEmail = string.Empty;
 
-        // Environment Search & List
+        // Open Dynamic Workspace Tabs
+        public ObservableCollection<WorkspaceTabItem> WorkspaceTabs { get; } = new();
+
+        // Environment Search & Master List
         private string _envSearchText = string.Empty;
         public ObservableCollection<SelectableEnv> AllDiscoveredEnvironments { get; } = new();
         public ObservableCollection<SelectableEnv> FilteredEnvironments { get; } = new();
@@ -159,10 +201,10 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public ObservableCollection<KeyValueRow> ModuleExcelGridRows { get; } = new();
 
         // Properties - Navigation & Module Switching
-        public int SelectedModuleIndex
+        public int SelectedTabIndex
         {
-            get => _selectedModuleIndex;
-            set { _selectedModuleIndex = value; OnPropertyChanged(); }
+            get => _selectedTabIndex;
+            set { _selectedTabIndex = value; OnPropertyChanged(); }
         }
 
         public bool IsLoading
@@ -250,13 +292,15 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         public string RoleBusinessUnit { get => _roleBusinessUnit; set { _roleBusinessUnit = value; OnPropertyChanged(); } }
         public string RoleLogMessage { get => _roleLogMessage; set { _roleLogMessage = value; OnPropertyChanged(); } }
 
-        // Commands - Global & Module 7
+        // Commands - Global & Landing Page
         public ICommand DiscoverEnvironmentsCommand { get; }
         public ICommand CompareEnvironmentsCommand { get; }
         public ICommand AddManualEnvCommand { get; }
         public ICommand SelectAllEnvsCommand { get; }
         public ICommand SelectNoneEnvsCommand { get; }
         public ICommand CheckAdminAccessCommand { get; }
+        public ICommand OpenModuleTabCommand { get; }
+
         public ICommand ExpandAllCommand { get; }
         public ICommand CollapseAllCommand { get; }
         public ICommand ExportHtmlCommand { get; }
@@ -293,6 +337,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             SelectAllEnvsCommand = new RelayCommand(_ => SetAllEnvsSelected(true));
             SelectNoneEnvsCommand = new RelayCommand(_ => SetAllEnvsSelected(false));
             CheckAdminAccessCommand = new RelayCommand(async _ => await CheckAdminAccessAsync());
+            OpenModuleTabCommand = new RelayCommand(param => OpenModuleTab(param?.ToString() ?? ""));
 
             ExpandAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, true));
             CollapseAllCommand = new RelayCommand(_ => SetTreeExpandedState(UnifiedSolutionExplorerTree, false));
@@ -317,10 +362,94 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             ExportRoleHtmlCommand = new RelayCommand(_ => ExportRoleHtml());
             ExportRoleExcelCommand = new RelayCommand(_ => ExportRoleExcel());
 
-            // Initial Sample Data
+            // Initialize Landing Page Workspace Tab
+            WorkspaceTabs.Add(new WorkspaceTabItem("🏠 Landing Page & Environment Hub", ModuleType.LandingPage, false, CloseWorkspaceTab));
+
+            // Sample Environments
             AddEnvironmentToList("contoso-dev", "https://contoso-dev.crm.dynamics.com", true, isAdmin: true);
             AddEnvironmentToList("contoso-test", "https://contoso-test.crm.dynamics.com", true, isAdmin: false);
             AddEnvironmentToList("contoso-prod", "https://contoso-prod.crm.dynamics.com", true, isAdmin: false);
+        }
+
+        public void OpenModuleTab(string moduleKey)
+        {
+            WorkspaceTabItem? newTab = null;
+
+            switch (moduleKey)
+            {
+                case "Module7":
+                    newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.Comparator);
+                    if (newTab == null)
+                    {
+                        newTab = new WorkspaceTabItem("🌐 Environment Comparator (Module 7)", ModuleType.Comparator, true, CloseWorkspaceTab);
+                        WorkspaceTabs.Add(newTab);
+                    }
+                    break;
+
+                case "Module2":
+                    newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.DeepValidator);
+                    if (newTab == null)
+                    {
+                        newTab = new WorkspaceTabItem("🔍 Solution Deep Validator (Module 2)", ModuleType.DeepValidator, true, CloseWorkspaceTab);
+                        WorkspaceTabs.Add(newTab);
+                    }
+                    break;
+
+                case "Module1":
+                    newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.SolutionRepair);
+                    if (newTab == null)
+                    {
+                        newTab = new WorkspaceTabItem("🔧 Solution Repair & Distiller (Module 1)", ModuleType.SolutionRepair, true, CloseWorkspaceTab);
+                        WorkspaceTabs.Add(newTab);
+                    }
+                    break;
+
+                case "Module3":
+                    newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.SecurityRoleManager);
+                    if (newTab == null)
+                    {
+                        newTab = new WorkspaceTabItem("👥 Security Role Manager (Module 3)", ModuleType.SecurityRoleManager, true, CloseWorkspaceTab);
+                        WorkspaceTabs.Add(newTab);
+                    }
+                    break;
+
+                case "Module4":
+                    newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.WebResourceSync);
+                    if (newTab == null)
+                    {
+                        newTab = new WorkspaceTabItem("⚡ Web Resource & JS Sync (Module 4)", ModuleType.WebResourceSync, true, CloseWorkspaceTab);
+                        WorkspaceTabs.Add(newTab);
+                    }
+                    break;
+
+                case "Module5":
+                    newTab = WorkspaceTabs.FirstOrDefault(t => t.Type == ModuleType.PluginDiff);
+                    if (newTab == null)
+                    {
+                        newTab = new WorkspaceTabItem("🔌 Plugin Step Diff Engine (Module 5)", ModuleType.PluginDiff, true, CloseWorkspaceTab);
+                        WorkspaceTabs.Add(newTab);
+                    }
+                    break;
+            }
+
+            if (newTab != null)
+            {
+                SelectedTabIndex = WorkspaceTabs.IndexOf(newTab);
+                StatusMessage = $"Opened workspace tab: '{newTab.Title}'";
+            }
+        }
+
+        private void CloseWorkspaceTab(WorkspaceTabItem tab)
+        {
+            if (tab.CanClose && WorkspaceTabs.Contains(tab))
+            {
+                int index = WorkspaceTabs.IndexOf(tab);
+                WorkspaceTabs.Remove(tab);
+                if (WorkspaceTabs.Count > 0)
+                {
+                    SelectedTabIndex = Math.Min(index, WorkspaceTabs.Count - 1);
+                }
+            }
         }
 
         private void AddEnvironmentToList(string name, string url, bool isSelected, bool isAdmin = false)
@@ -349,7 +478,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         private void SetAllEnvsSelected(bool selected)
         {
-            // Iterate over a snapshot list to prevent collection modification during enumeration crash
             var snapshot = FilteredEnvironments.ToList();
             foreach (var env in snapshot)
             {
@@ -370,22 +498,28 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             ProgressDetails = "Checking System Administrator role privileges across environments...";
             StatusMessage = ProgressDetails;
 
-            int adminCount = 0;
-            try
+            await Task.Run(async () =>
             {
+                int adminCount = 0;
+                var envList = AllDiscoveredEnvironments.ToList();
                 var authProvider = new MsalAuthenticationProvider(username: UserEmail);
 
-                for (int i = 0; i < AllDiscoveredEnvironments.Count; i++)
+                for (int i = 0; i < envList.Count; i++)
                 {
-                    var env = AllDiscoveredEnvironments[i];
-                    ProgressPercentage = (double)(i + 1) / AllDiscoveredEnvironments.Count * 100;
-                    ProgressDetails = $"Checking Admin role for {env.RawName} ({env.Url})...";
+                    var env = envList[i];
+
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        ProgressPercentage = (double)(i + 1) / envList.Count * 100;
+                        ProgressDetails = $"Checking Admin role for {env.RawName} [{i + 1}/{envList.Count}]...";
+                        StatusMessage = ProgressDetails;
+                    });
 
                     bool isAdmin = false;
 
                     if (IsSimulationMode)
                     {
-                        await Task.Delay(300).ConfigureAwait(true);
+                        await Task.Delay(250).ConfigureAwait(false);
                         isAdmin = env.RawName.Contains("dev") || env.RawName.Contains("sandbox") || i == 0;
                     }
                     else
@@ -393,26 +527,24 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                         try
                         {
                             var profile = new ConnectionProfile { EnvironmentUrl = env.Url, UseInteractiveAuth = true };
-                            string token = await authProvider.GetAccessTokenAsync(profile).ConfigureAwait(true);
+                            string token = await authProvider.GetAccessTokenAsync(profile).ConfigureAwait(false);
 
                             using var client = new HttpClient();
                             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                            // 1. Query WhoAmI
-                            var whoAmIRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/WhoAmI").ConfigureAwait(true);
+                            var whoAmIRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/WhoAmI").ConfigureAwait(false);
                             if (whoAmIRes.IsSuccessStatusCode)
                             {
-                                using var doc = await whoAmIRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(true);
+                                using var doc = await whoAmIRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
                                 if (doc != null && doc.RootElement.TryGetProperty("UserId", out var userIdProp))
                                 {
                                     string userId = userIdProp.GetString() ?? "";
 
-                                    // 2. Query user's assigned security roles
-                                    var rolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/systemuserroles_association?$select=name").ConfigureAwait(true);
+                                    var rolesRes = await client.GetAsync($"{env.Url.TrimEnd('/')}/api/data/v9.2/systemusers({userId})/systemuserroles_association?$select=name").ConfigureAwait(false);
                                     if (rolesRes.IsSuccessStatusCode)
                                     {
-                                        using var rolesDoc = await rolesRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(true);
+                                        using var rolesDoc = await rolesRes.Content.ReadFromJsonAsync<JsonDocument>().ConfigureAwait(false);
                                         if (rolesDoc != null && rolesDoc.RootElement.TryGetProperty("value", out var valueArr) && valueArr.ValueKind == JsonValueKind.Array)
                                         {
                                             foreach (var roleItem in valueArr.EnumerateArray())
@@ -431,28 +563,28 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                         }
                         catch
                         {
-                            // If direct role check fails, default to existing or non-admin
                             isAdmin = env.IsAdmin;
                         }
                     }
 
-                    env.IsAdmin = isAdmin;
+                    // INSTANT REAL-TIME UI UPDATE PER ENVIRONMENT ITEM
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        env.IsAdmin = isAdmin;
+                        ApplyEnvFilter();
+                    });
+
                     if (isAdmin) adminCount++;
                 }
 
-                ApplyEnvFilter();
-                ProgressPercentage = 100;
-                ProgressDetails = $"Admin check complete. Identified {adminCount} environment(s) with System Administrator privileges.";
-                StatusMessage = ProgressDetails;
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Admin check failed: {ex.Message}";
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    ProgressPercentage = 100;
+                    ProgressDetails = $"Admin check complete. Identified {adminCount} environment(s) with System Administrator privileges.";
+                    StatusMessage = ProgressDetails;
+                    IsLoading = false;
+                });
+            }).ConfigureAwait(false);
         }
 
         public async Task DiscoverEnvironmentsAsync()
@@ -512,7 +644,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
                     ProgressPercentage = 100;
                     ProgressDetails = $"Successfully discovered {AllDiscoveredEnvironments.Count} real tenant environments!";
-                    StatusMessage = $"Discovered {AllDiscoveredEnvironments.Count} real tenant environments for {UserEmail}. Click '🛡️ Check Admin' to identify Admin privileges.";
+                    StatusMessage = $"Discovered {AllDiscoveredEnvironments.Count} real tenant environments for {UserEmail}. Click 'Check if Admin' to identify Admin privileges.";
                 }
                 else
                 {
@@ -661,7 +793,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             }
         }
 
-        // MODULE 2: Solution Deep Validator Runner (Single vs Multi-Environment Enabled)
+        // MODULE 2: Solution Deep Validator Runner
         public async Task RunValidationAsync()
         {
             var selectedEnvs = AllDiscoveredEnvironments.Where(e => e.IsSelected).ToList();
@@ -715,7 +847,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     ? $"Validation scan finished for {selectedEnvs[0].DisplayName}! Total Issues: {ValidationIssues.Count}"
                     : $"Multi-Environment Validation scan finished across {selectedEnvs.Count} environments! Total Issues: {ValidationIssues.Count}";
 
-                // Populate In-UX Excel Grid
                 ModuleExcelGridRows.Clear();
                 foreach (var issue in ValidationIssues)
                 {
@@ -765,7 +896,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             StatusMessage = $"Exported Formatted Excel Report (No MS Office Required) to {xmlPath}";
         }
 
-        // MODULE 1: Solution Repair & Distiller Runner (Single vs Multi-Environment Enabled)
+        // MODULE 1: Solution Repair & Distiller Runner
         public async Task RunRepairDistillAsync()
         {
             var selectedEnvs = AllDiscoveredEnvironments.Where(e => e.IsSelected).ToList();
@@ -846,7 +977,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             StatusMessage = $"Exported Formatted Excel Report (No MS Office Required) to {xmlPath}";
         }
 
-        // MODULE 3: Security Role Lifecycle Manager Runner (Single vs Multi-Environment Enabled)
+        // MODULE 3: Security Role Lifecycle Manager Runner
         public async Task RunRoleAuditAsync()
         {
             var selectedEnvs = AllDiscoveredEnvironments.Where(e => e.IsSelected).ToList();
@@ -946,7 +1077,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
             DetailContentType contentType = isCode ? DetailContentType.CodeEditor : (isXml ? DetailContentType.XmlViewer : DetailContentType.PropertyGrid);
 
-            // 1. Comparison Tab
             var compTab = new EnvDetailTabViewModel
             {
                 Header = "📊 Side-by-Side Comparison",
@@ -962,7 +1092,6 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             }
             EnvDetailTabs.Add(compTab);
 
-            // 2. Per-Environment Tabs with Polymorphic View Types (Code vs Xml vs PropertyGrid)
             if (_lastResult != null && _lastResult.TargetEnvironmentNames != null)
             {
                 foreach (var envName in _lastResult.TargetEnvironmentNames)
@@ -1060,8 +1189,8 @@ function onAccountSave(executionContext) {{
 
     public class RelayCommand : ICommand
     {
-        private readonly Action<object?> _execute;
-        private readonly Func<object?, bool>? _canExecute;
+        Action<object?> _execute;
+        Func<object?, bool>? _canExecute;
 
         public RelayCommand(Action<object?> execute, Func<object?, bool>? canExecute = null)
         {
