@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:PowerPlatform.ProductivityEngine.DesktopUX.ViewModels"
         Title="Power Platform Productivity Engine Suite (.NET 9)" Height="920" Width="1420"
-        Icon="Resources/app_logo.png"
+        Icon="pack://application:,,,/Resources/app_logo.png"
         Background="#0F172A" Foreground="#F8FAFC" WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
@@ -28,7 +28,7 @@
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                     <!-- App Logo Image Badge -->
-                    <Image Source="Resources/app_logo.png" Width="28" Height="28" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Image Source="pack://application:,,,/Resources/app_logo.png" Width="28" Height="28" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <TextBlock Text="⚡ POWER PLATFORM ENGINE SUITE" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,16,0"/>
                     <Button Content="🔑 Discover Envs (OAuth)" Command="{Binding DiscoverEnvironmentsCommand}" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="12,6" Margin="0,0,8,0" BorderThickness="0"/>
                     <CheckBox Content="Simulation Mode (Offline Demo)" IsChecked="{Binding IsSimulationMode}" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,16,0"/>

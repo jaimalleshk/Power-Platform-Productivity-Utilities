@@ -9,10 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Resources\app_logo.png">
+    <Resource Include="Resources\app_logo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Resource Include="Resources\app_logo.png" />
+    </Resource>
   </ItemGroup>
 
   <ItemGroup>
