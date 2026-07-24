@@ -18,6 +18,10 @@ namespace PowerPlatform.ProductivityEngine.Core.Logging
         private static readonly ConcurrentQueue<LogEntry> PendingLogsQueue = new();
         private static readonly CancellationTokenSource Cts = new();
 
+        private const int MaxRetentionDays = 7;
+        private const int MaxRetentionRows = 100_000;
+        private const long VacuumThresholdBytes = 50 * 1024 * 1024;
+
         static SqliteLogStore()
         {
             InitializeDatabase();
@@ -37,18 +41,45 @@ namespace PowerPlatform.ProductivityEngine.Core.Logging
                 using var conn = new SqliteConnection($"Data Source={DbPath}");
                 conn.Open();
 
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS ExecutionLogs (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Timestamp TEXT,
-                        Level TEXT,
-                        Category TEXT,
-                        Message TEXT,
-                        ExceptionText TEXT
-                    );
-                    DELETE FROM ExecutionLogs WHERE Id NOT IN (SELECT Id FROM ExecutionLogs ORDER BY Id DESC LIMIT 10000);";
-                cmd.ExecuteNonQuery();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS ExecutionLogs (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Timestamp TEXT,
+                            Level TEXT,
+                            Category TEXT,
+                            Message TEXT,
+                            ExceptionText TEXT
+                        );
+                        CREATE INDEX IF NOT EXISTS IDX_ExecutionLogs_Timestamp ON ExecutionLogs(Timestamp);";
+                    cmd.ExecuteNonQuery();
+                }
+
+                // Prune by age
+                using (var cmdAge = conn.CreateCommand())
+                {
+                    cmdAge.CommandText = "DELETE FROM ExecutionLogs WHERE Timestamp < datetime('now', @cutoff);";
+                    cmdAge.Parameters.AddWithValue("@cutoff", $"-{MaxRetentionDays} days");
+                    cmdAge.ExecuteNonQuery();
+                }
+
+                // Prune by count
+                using (var cmdCount = conn.CreateCommand())
+                {
+                    cmdCount.CommandText = @"DELETE FROM ExecutionLogs WHERE Id NOT IN (
+                        SELECT Id FROM ExecutionLogs ORDER BY Id DESC LIMIT @keep);";
+                    cmdCount.Parameters.AddWithValue("@keep", MaxRetentionRows);
+                    cmdCount.ExecuteNonQuery();
+                }
+
+                // Auto vacuum if file size > 50MB
+                if (File.Exists(DbPath) && new FileInfo(DbPath).Length > VacuumThresholdBytes)
+                {
+                    using var vacCmd = conn.CreateCommand();
+                    vacCmd.CommandText = "VACUUM;";
+                    vacCmd.ExecuteNonQuery();
+                }
             }
             catch { }
         }

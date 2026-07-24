@@ -48,9 +48,10 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <DockPanel Grid.Row="0" Margin="0,0,0,6" LastChildFill="True">
-                    <TextBlock Text="⏳ PROCESSING IN PROGRESS: " FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Left"/>
-                    <TextBlock Text="{Binding ProgressPercentage, StringFormat={}{0:0}%}" FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Right" Margin="8,0,0,0"/>
-                    <TextBlock Text="{Binding ProgressDetails}" Foreground="#F8FAFC" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                    <Button Content="❌ Cancel" Command="{Binding CancelCurrentOperationCommand}" Background="#B91C1C" Foreground="White" FontWeight="Bold" Padding="10,3" Margin="12,0,0,0" FontSize="11.5" DockPanel.Dock="Right" BorderThickness="0" Cursor="Hand" ToolTip="Cancel active operation immediately"/>
+                    <TextBlock Text="{Binding ProgressPercentage, StringFormat={}{0:0}%}" FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="⏳ PROCESSING IN PROGRESS: " FontWeight="Bold" Foreground="#38BDF8" FontSize="12" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ProgressDetails}" Foreground="#F8FAFC" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                 </DockPanel>
                 <ProgressBar Grid.Row="1" IsIndeterminate="False" Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="10" Background="#0F172A" Foreground="#0284C7" BorderThickness="0"/>
             </Grid>

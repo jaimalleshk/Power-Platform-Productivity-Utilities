@@ -70,6 +70,7 @@ namespace PowerPlatform.ProductivityEngine.Core.Connections
             client.DefaultRequestHeaders.Add("OData-Version", "4.0");
             client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             client.DefaultRequestHeaders.Add("Prefer", "odata.include-annotations=\"*\"");
+            client.DefaultRequestHeaders.Add("Prefer", "odata.maxpagesize=500");
 
             return client;
         }

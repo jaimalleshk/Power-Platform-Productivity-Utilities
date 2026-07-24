@@ -265,6 +265,9 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
 
         public ICommand ClearConsoleCommand { get; }
         public ICommand ExportConsoleLogsCommand { get; }
+        public ICommand CancelCurrentOperationCommand { get; }
+
+        private CancellationTokenSource? _currentOperationCts;
 
         // Properties - Navigation & Module Switching
         public int SelectedTabIndex
@@ -433,6 +436,15 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             RunRoleSyncCommand = new RelayCommand(async _ => await RunRoleSyncAsync());
             ExportRoleHtmlCommand = new RelayCommand(_ => ExportRoleHtml());
             ExportRoleExcelCommand = new RelayCommand(_ => ExportRoleExcel());
+            CancelCurrentOperationCommand = new RelayCommand(_ =>
+            {
+                if (_currentOperationCts != null && !_currentOperationCts.IsCancellationRequested)
+                {
+                    _currentOperationCts.Cancel();
+                    StatusMessage = "Cancellation requested by user...";
+                    ProgressDetails = "Cancelling operation...";
+                }
+            });
 
             ClearConsoleCommand = new RelayCommand(_ => { 
                 LiveConsoleLogs.Clear(); 
@@ -1018,17 +1030,26 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                 });
             });
 
+            _currentOperationCts?.Dispose();
+            _currentOperationCts = new CancellationTokenSource();
+            var ct = _currentOperationCts.Token;
+
             await Task.Run(async () =>
             {
                 try
                 {
                     foreach (var profile in profiles)
                     {
+                        ct.ThrowIfCancellationRequested();
                         currentEnvIndex++;
                         try
                         {
-                            var data = await crawler.CrawlEnvironmentAsync(profile, Scope, progress).ConfigureAwait(false);
+                            var data = await crawler.CrawlEnvironmentAsync(profile, Scope, progress, ct).ConfigureAwait(false);
                             _lastRawEnvDataList.Add(data);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
                         }
                         catch (Exception exEnv)
                         {
@@ -1095,6 +1116,15 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
                     });
 
                     PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogSuccess("Comparator", $"Comparison complete! Tree populated with {_lastResult.TotalCount} total components across {_lastRawEnvDataList.Count} environment(s).");
+                }
+                catch (OperationCanceledException)
+                {
+                    PowerPlatform.ProductivityEngine.Core.Logging.AppLogger.LogWarning("Comparator", "Operation cancelled by user.");
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        StatusMessage = "Operation cancelled by user.";
+                        ProgressDetails = "Cancelled by user.";
+                    });
                 }
                 catch (Exception ex)
                 {

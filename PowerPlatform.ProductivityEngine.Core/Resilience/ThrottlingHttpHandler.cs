@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using PowerPlatform.ProductivityEngine.Core.Authentication;
 using PowerPlatform.ProductivityEngine.Core.Connections;
+using PowerPlatform.ProductivityEngine.Core.Logging;
 
 namespace PowerPlatform.ProductivityEngine.Core.Resilience
 {
@@ -26,14 +27,19 @@ namespace PowerPlatform.ProductivityEngine.Core.Resilience
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            string environmentKey = _profile.EnvironmentUrl.TrimEnd('/').ToLowerInvariant();
+            string environmentKey = _profile.EnvironmentUrl?.TrimEnd('/').ToLowerInvariant() ?? "";
             var semaphore = EnvironmentSemaphores.GetOrAdd(environmentKey, _ => new SemaphoreSlim(1, 1));
+
+            var wallClock = System.Diagnostics.Stopwatch.StartNew();
+            int maxWallMs = _profile?.MaxRetryWallTimeSeconds * 1000 ?? 60000;
 
             int maxRetries = 5;
             int attempt = 0;
 
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // 1. Wait on the semaphore to check if we are currently throttled by another thread
                 await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 semaphore.Release();
@@ -47,8 +53,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Resilience
 
                 try
                 {
-                    // Clone the request if we are doing retries, because HttpClient doesn't allow sending the same request twice
-                    // (we skip cloning on the very first attempt to avoid overhead if it succeeds)
                     HttpRequestMessage requestToSend = request;
                     if (attempt > 0)
                     {
@@ -57,15 +61,27 @@ namespace PowerPlatform.ProductivityEngine.Core.Resilience
 
                     response = await base.SendAsync(requestToSend, cancellationToken).ConfigureAwait(false);
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw; // Immediate cancellation propagation
+                }
                 catch (Exception ex) when (IsTransientException(ex) && attempt < maxRetries)
                 {
                     caughtException = ex;
                 }
 
+                int remainingMs = maxWallMs - (int)wallClock.ElapsedMilliseconds;
+
                 if (caughtException != null)
                 {
+                    if (remainingMs <= 0 || attempt >= maxRetries)
+                    {
+                        throw caughtException;
+                    }
+
                     attempt++;
-                    int delayMs = (int)Math.Pow(2, attempt) * 1000;
+                    int delayMs = (int)Math.Min(Math.Pow(2, attempt) * 1000, remainingMs);
+                    AppLogger.LogWarning("HTTP", $"[{request.RequestUri?.PathAndQuery}] attempt {attempt}/{maxRetries}: transient exception ({caughtException.Message})");
                     await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
                     continue;
                 }
@@ -73,13 +89,12 @@ namespace PowerPlatform.ProductivityEngine.Core.Resilience
                 // 3. Handle Throttling (HTTP 429)
                 if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 {
-                    attempt++;
-                    if (attempt > maxRetries)
+                    if (remainingMs <= 0 || attempt >= maxRetries)
                     {
                         return response;
                     }
 
-                    // Calculate delay from Retry-After header
+                    attempt++;
                     int delayMs = 0;
                     if (response.Headers.RetryAfter != null)
                     {
@@ -98,7 +113,9 @@ namespace PowerPlatform.ProductivityEngine.Core.Resilience
                         delayMs = (int)Math.Pow(2, attempt) * 1000;
                     }
 
-                    // Pause all other parallel workers for that target environment using the Semaphore
+                    delayMs = Math.Min(delayMs, remainingMs);
+                    AppLogger.LogWarning("HTTP", $"[{request.RequestUri?.PathAndQuery}] attempt {attempt}/{maxRetries}: 429 Throttled (backing off {delayMs}ms)");
+
                     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
@@ -109,16 +126,22 @@ namespace PowerPlatform.ProductivityEngine.Core.Resilience
                         semaphore.Release();
                     }
 
-                    continue; // Retry
+                    continue;
                 }
 
                 // 4. Handle Transient Faults (502, 503, 504)
-                if (IsTransientStatusCode(response.StatusCode) && attempt < maxRetries)
+                if (IsTransientStatusCode(response.StatusCode))
                 {
+                    if (remainingMs <= 0 || attempt >= maxRetries)
+                    {
+                        return response;
+                    }
+
                     attempt++;
-                    int delayMs = (int)Math.Pow(2, attempt) * 1000;
+                    int delayMs = (int)Math.Min(Math.Pow(2, attempt) * 1000, remainingMs);
+                    AppLogger.LogWarning("HTTP", $"[{request.RequestUri?.PathAndQuery}] attempt {attempt}/{maxRetries}: HTTP {(int)response.StatusCode}");
                     await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
-                    continue; // Retry
+                    continue;
                 }
 
                 return response;
@@ -136,7 +159,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Resilience
         {
             return ex is System.IO.IOException || 
                    ex is System.Net.Sockets.SocketException || 
-                   ex is TaskCanceledException || 
                    ex is TimeoutException;
         }
 

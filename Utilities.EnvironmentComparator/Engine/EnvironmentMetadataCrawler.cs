@@ -32,7 +32,8 @@ namespace Utilities.EnvironmentComparator.Engine
         public async Task<RawEnvData> CrawlEnvironmentAsync(
             ConnectionProfile profile, 
             ComparisonScope scope, 
-            IProgress<ProgressUpdate>? progress = null)
+            IProgress<ProgressUpdate>? progress = null,
+            CancellationToken cancellationToken = default)
         {
             string envName = profile.EnvironmentUrl != null && profile.EnvironmentUrl.Contains("://") 
                 ? profile.EnvironmentUrl.Split("://")[1].Split('.')[0] 
@@ -47,7 +48,7 @@ namespace Utilities.EnvironmentComparator.Engine
 
             if (shouldSimulate)
             {
-                await Task.Delay(300).ConfigureAwait(false);
+                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
                 string msg1 = $"[SIMULATION] Crawling Default Solution, Active Unmanaged Layers, Solution Component Layers, & D365 components for {envName}...";
                 AppLogger.LogInfo("Comparator", msg1);
                 progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = msg1, PercentComplete = 50 });
@@ -66,58 +67,77 @@ namespace Utilities.EnvironmentComparator.Engine
                 progress?.Report(new ProgressUpdate { Stage = stage, Message = $"[{envName}] {message}", PercentComplete = percent });
             }
 
-            // 1. Crawl Admin Settings & Environment Variables (Root 1)
-            ReportAndLog("Admin Crawl", "Fetching Organization Settings & Environment Variable Values...", 10);
-            await CrawlAdminSettingsAsync(httpClient, envName, rawData).ConfigureAwait(false);
-            await CrawlEnvVariablesAsync(httpClient, rawData).ConfigureAwait(false);
+            var sections = new List<(string Stage, string Message, Func<Task> Run)>();
 
-            // 2. Crawl Default Solution, Managed & Unmanaged Customizations
-            ReportAndLog("Solutions Crawl", "Fetching Default Solution & Solution Inventories...", 20);
-            await CrawlSolutionsAndAppsAsync(httpClient, rawData).ConfigureAwait(false);
+            if (scope.CompareAdminSettings || scope.CompareOrgDbSettings || scope.CompareSecurityGovernance)
+            {
+                sections.Add(("Admin Crawl", "Fetching Organization Settings & Security Config...", () => CrawlAdminSettingsAsync(httpClient, envName, rawData)));
+            }
 
-            // 3. Crawl Active Unmanaged Layers & Solution Component Layers
-            ReportAndLog("Solution Layers Crawl", "Fetching Active Unmanaged Layers & Solution Component Layers...", 30);
-            await CrawlSolutionComponentLayersAsync(httpClient, rawData).ConfigureAwait(false);
+            if (scope.CompareEnvironmentVariables)
+            {
+                sections.Add(("EnvVars Crawl", "Fetching Environment Variables...", () => CrawlEnvVariablesAsync(httpClient, rawData)));
+            }
 
-            // 4. Crawl System & Interactive Dashboards
-            ReportAndLog("Dashboards Crawl", "Fetching System Dashboards & User Dashboards...", 40);
-            await CrawlDashboardsAsync(httpClient, rawData).ConfigureAwait(false);
+            sections.Add(("Solutions Crawl", "Fetching Solutions & App Inventories...", () => CrawlSolutionsAndAppsAsync(httpClient, rawData)));
+            sections.Add(("Solution Layers Crawl", "Fetching Solution Component Layers...", () => CrawlSolutionComponentLayersAsync(httpClient, rawData)));
+            sections.Add(("Dashboards Crawl", "Fetching System & User Dashboards...", () => CrawlDashboardsAsync(httpClient, rawData)));
+            sections.Add(("PCF Crawl", "Fetching PCF Controls...", () => CrawlPcfControlsAsync(httpClient, rawData)));
+            sections.Add(("SiteMaps Crawl", "Fetching Site Maps...", () => CrawlSiteMapsAsync(httpClient, rawData)));
 
-            // 5. Crawl PCF Controls & Custom Control Resources
-            ReportAndLog("PCF Crawl", "Fetching PCF Controls (customcontrols)...", 50);
-            await CrawlPcfControlsAsync(httpClient, rawData).ConfigureAwait(false);
+            if (scope.CompareSecurityRoles)
+            {
+                sections.Add(("Security Crawl", "Fetching Security Roles & Field Security Profiles...", () => CrawlFieldSecurityProfilesAsync(httpClient, rawData)));
+            }
 
-            // 6. Crawl SiteMaps
-            ReportAndLog("SiteMaps Crawl", "Fetching Site Maps & Navigation Menus...", 60);
-            await CrawlSiteMapsAsync(httpClient, rawData).ConfigureAwait(false);
+            sections.Add(("Connectors Crawl", "Fetching Connection References & Connectors...", () => CrawlConnectionReferencesAndConnectorsAsync(httpClient, rawData)));
+            sections.Add(("Copilot Studio Crawl", "Fetching Copilot Studio Bots & Topics...", () => CrawlCopilotStudioAsync(httpClient, rawData)));
 
-            // 7. Crawl Field Security Profiles & Permissions
-            ReportAndLog("Security Crawl", "Fetching Field Security Profiles...", 70);
-            await CrawlFieldSecurityProfilesAsync(httpClient, rawData).ConfigureAwait(false);
+            if (scope.ComparePluginsAndSteps)
+            {
+                sections.Add(("Plugins Crawl", "Fetching Plug-in Assemblies & Steps...", () => CrawlPluginsAndCustomApisAsync(httpClient, rawData)));
+            }
 
-            // 8. Crawl Connection References & Custom Connectors
-            ReportAndLog("Connectors Crawl", "Fetching Connection References & Custom Connectors...", 75);
-            await CrawlConnectionReferencesAndConnectorsAsync(httpClient, rawData).ConfigureAwait(false);
+            if (scope.CompareTablesAndColumns || scope.CompareWebResources)
+            {
+                sections.Add(("Tables Crawl", "Fetching Forms, Views & Table Metadata...", async () => 
+                {
+                    await CrawlFormsViewsAndCanvasAppsAsync(httpClient, rawData).ConfigureAwait(false);
+                    await CrawlTablesAsync(httpClient, rawData).ConfigureAwait(false);
+                }));
+            }
 
-            // 9. Crawl Copilot Studio Bots & Topics
-            ReportAndLog("Copilot Studio Crawl", "Fetching Copilot Studio Bots & Topics...", 80);
-            await CrawlCopilotStudioAsync(httpClient, rawData).ConfigureAwait(false);
+            // Always run extensibility providers
+            sections.Add(("Extensibility", "Executing Extensibility Providers...", () => ComparisonProviderRegistry.ExecuteAllProvidersAsync(httpClient, envName, rawData, scope)));
 
-            // 10. Crawl Plug-in Assemblies & Custom APIs
-            ReportAndLog("Plugins Crawl", "Fetching Plug-in Assemblies & Custom APIs...", 88);
-            await CrawlPluginsAndCustomApisAsync(httpClient, rawData).ConfigureAwait(false);
+            if (sections.Count == 0)
+            {
+                progress?.Report(new ProgressUpdate { Stage = "Crawl", Message = $"[{envName}] No sections selected in ComparisonScope.", PercentComplete = 100 });
+                return rawData;
+            }
 
-            // 11. Crawl Forms, Views, Canvas Apps, Custom Pages, & Tables
-            ReportAndLog("Tables Crawl", "Fetching Forms, Views, Columns, & OOB/Custom Tables...", 95);
-            await CrawlFormsViewsAndCanvasAppsAsync(httpClient, rawData).ConfigureAwait(false);
-            await CrawlTablesAsync(httpClient, rawData).ConfigureAwait(false);
+            for (int i = 0; i < sections.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var s = sections[i];
+                int pct = (int)Math.Round((double)(i + 1) / sections.Count * 100);
+                ReportAndLog(s.Stage, s.Message, pct);
+                try
+                {
+                    await s.Run().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exSec)
+                {
+                    AppLogger.LogWarning("Comparator", $"[{envName}] [{s.Stage}] Non-fatal section crawl exception: {exSec.Message}");
+                }
+            }
 
-            // Execute Extensibility Providers
-            ReportAndLog("Extensibility", "Executing Extensibility Providers...", 98);
-            await ComparisonProviderRegistry.ExecuteAllProvidersAsync(httpClient, envName, rawData, scope).ConfigureAwait(false);
-
-            AppLogger.LogSuccess("Comparator", $"[{envName}] Completed full D365 non-transactional metadata crawl! Total metadata categories: {rawData.MetadataItems.Count}");
-            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Completed full D365 non-transactional metadata crawl.", PercentComplete = 100 });
+            AppLogger.LogSuccess("Comparator", $"[{envName}] Completed metadata crawl! Total categories: {rawData.MetadataItems.Count}");
+            progress?.Report(new ProgressUpdate { Stage = "Metadata Crawl", Message = $"[{envName}] Completed metadata crawl.", PercentComplete = 100 });
             return rawData;
         }
 

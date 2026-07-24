@@ -14,5 +14,6 @@ namespace PowerPlatform.ProductivityEngine.Core.Connections
         public string LoginHint { get; set; }
         public string ConnectionString { get; set; } // If provided, takes precedence over other fields
         public int TimeoutSeconds { get; set; } = 120;
+        public int MaxRetryWallTimeSeconds { get; set; } = 60;
     }
 }

@@ -8,7 +8,25 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX
     public partial class App : Application
     {
         [ThreadStatic]
-        private static bool _isHandlingException;
+        private static bool _inHandler;
+
+        private static void SafeLog(string category, string message, Exception ex)
+        {
+            if (_inHandler) return;
+            try
+            {
+                _inHandler = true;
+                AppLogger.LogError(category, message, ex);
+            }
+            catch
+            {
+                // Swallow exceptions during logging to prevent infinite crash loops
+            }
+            finally
+            {
+                _inHandler = false;
+            }
+        }
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -23,58 +41,24 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            if (_isHandlingException)
-            {
-                e.Handled = true;
-                return;
-            }
-
-            try
-            {
-                _isHandlingException = true;
-                AppLogger.LogError("WPF UI Engine", $"Unhandled Dispatcher Exception caught: {e.Exception.Message}", e.Exception);
-            }
-            finally
-            {
-                _isHandlingException = false;
-                e.Handled = true; // PREVENT CRASH
-            }
+            e.Handled = true; // Set handled IMMEDIATELY before attempting logging
+            SafeLog("WPF UI Engine", $"Unhandled Dispatcher Exception caught: {e.Exception.Message}", e.Exception);
         }
 
         private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            if (_isHandlingException) return;
-            try
+            if (e.ExceptionObject is Exception ex)
             {
-                _isHandlingException = true;
-                if (e.ExceptionObject is Exception ex)
-                {
-                    AppLogger.LogError("AppDomain Engine", $"Unhandled Domain Exception caught: {ex.Message}", ex);
-                }
-            }
-            finally
-            {
-                _isHandlingException = false;
+                SafeLog("AppDomain Engine", $"Unhandled Domain Exception caught: {ex.Message}", ex);
             }
         }
 
         private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
-            if (_isHandlingException)
+            e.SetObserved(); // Set observed IMMEDIATELY before attempting logging
+            if (e.Exception != null)
             {
-                e.SetObserved();
-                return;
-            }
-
-            try
-            {
-                _isHandlingException = true;
-                AppLogger.LogError("Task Engine", $"Unobserved Task Exception caught: {e.Exception.Message}", e.Exception);
-            }
-            finally
-            {
-                _isHandlingException = false;
-                e.SetObserved(); // PREVENT CRASH
+                SafeLog("Task Engine", $"Unobserved Task Exception caught: {e.Exception.Message}", e.Exception);
             }
         }
     }
