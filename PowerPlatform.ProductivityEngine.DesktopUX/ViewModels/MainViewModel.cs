@@ -176,7 +176,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         private string _userEmail = string.Empty;
 
         // Startup Initialization Overlay State
-        private bool _isInitializing = true;
+        private bool _isInitializing = false;
         private string _splashStatusText = "🔑 Initializing Dataverse OAuth & MSAL Core Services...";
         private int _splashProgressValue = 15;
 
