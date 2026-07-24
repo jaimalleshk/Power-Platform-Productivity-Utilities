@@ -1,0 +1,45 @@
+<Window x:Class="PowerPlatform.ProductivityEngine.DesktopUX.SplashScreenWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Power Platform Productivity Engine" Height="360" Width="580"
+        WindowStyle="None" AllowsTransparency="True" WindowStartupLocation="CenterScreen"
+        Background="Transparent" ShowInTaskbar="True">
+
+    <Border Background="#0F172A" CornerRadius="14" BorderBrush="#38BDF8" BorderThickness="1.5">
+        <Border.Effect>
+            <DropShadowEffect Color="#0284C7" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
+        </Border.Effect>
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- HEADER & LOGO -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,10">
+                <Image Source="Resources/app_logo.png" Width="48" Height="48" Margin="0,0,14,0"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="⚡ POWER PLATFORM ENGINE" FontSize="20" FontWeight="Bold" Foreground="#38BDF8"/>
+                    <TextBlock Text="Productivity Suite &amp; Multi-Environment Comparator (.NET 9)" FontSize="12" Foreground="#94A3B8"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- BODY INFOGRAPHIC -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border Background="#1E293B" CornerRadius="8" Padding="16,12" BorderBrush="#334155" BorderThickness="1" Width="480">
+                    <StackPanel>
+                        <TextBlock x:Name="StatusTextBlock" Text="🚀 Starting Power Platform Productivity Engine..." Foreground="#F8FAFC" FontSize="13" FontWeight="SemiBold" TextAlignment="Center" Margin="0,0,0,8"/>
+                        <ProgressBar x:Name="SplashProgressBar" Height="10" Minimum="0" Maximum="100" Value="0" Background="#0F172A" Foreground="#0284C7" BorderThickness="0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- FOOTER COPYRIGHT & VERSION -->
+            <DockPanel Grid.Row="2" Margin="0,10,0,0" LastChildFill="False">
+                <TextBlock Text="v2.4.0 (Enterprise Resilient Edition)" Foreground="#64748B" FontSize="11" DockPanel.Dock="Left"/>
+                <TextBlock Text="Powered by Microsoft Dataverse Web API" Foreground="#64748B" FontSize="11" DockPanel.Dock="Right"/>
+            </DockPanel>
+        </Grid>
+    </Border>
+</Window>
