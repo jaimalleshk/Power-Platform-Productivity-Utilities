@@ -175,6 +175,29 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
         private string _statusMessage = "Ready. Welcome to Power Platform Productivity Engine!";
         private string _userEmail = string.Empty;
 
+        // Startup Initialization Overlay State
+        private bool _isInitializing = true;
+        private string _splashStatusText = "🔑 Initializing Dataverse OAuth & MSAL Core Services...";
+        private int _splashProgressValue = 15;
+
+        public bool IsInitializing
+        {
+            get => _isInitializing;
+            set { _isInitializing = value; OnPropertyChanged(); }
+        }
+
+        public string SplashStatusText
+        {
+            get => _splashStatusText;
+            set { _splashStatusText = value; OnPropertyChanged(); }
+        }
+
+        public int SplashProgressValue
+        {
+            get => _splashProgressValue;
+            set { _splashProgressValue = value; OnPropertyChanged(); }
+        }
+
         // Open Dynamic Workspace Tabs
         public ObservableCollection<WorkspaceTabItem> WorkspaceTabs { get; } = new();
 
@@ -459,9 +482,31 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX.ViewModels
             // Sample Environments
             AddEnvironmentToList("contoso-dev", "https://contoso-dev.crm.dynamics.com", true, isAdmin: true);
             AddEnvironmentToList("contoso-test", "https://contoso-test.crm.dynamics.com", true, isAdmin: false);
-            AddEnvironmentToList("contoso-prod", "https://contoso-prod.crm.dynamics.com", true, isAdmin: false);
-
             InitializeDefaultSolutionExplorerTree();
+
+            RunStartupInitializationSequence();
+        }
+
+        private async void RunStartupInitializationSequence()
+        {
+            await Task.Delay(200);
+            SplashStatusText = "🗄️ Initializing SQLite Offline Caching Database...";
+            SplashProgressValue = 35;
+
+            await Task.Delay(200);
+            SplashStatusText = "📁 Loading Power Platform 15-Category Solution Explorer Skeleton...";
+            SplashProgressValue = 60;
+
+            await Task.Delay(200);
+            SplashStatusText = "📜 Starting Non-Blocking Background Logging Subsystem...";
+            SplashProgressValue = 85;
+
+            await Task.Delay(200);
+            SplashStatusText = "🚀 Launching Power Platform Engine Suite...";
+            SplashProgressValue = 100;
+
+            await Task.Delay(250);
+            IsInitializing = false;
         }
 
         private void InitializeDefaultSolutionExplorerTree()

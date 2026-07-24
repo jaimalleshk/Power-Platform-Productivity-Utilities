@@ -794,5 +794,35 @@
         <Border Grid.Row="4" Background="#0F172A" Padding="6,4">
             <TextBlock Text="{Binding StatusMessage}" Foreground="#94A3B8" FontSize="12"/>
         </Border>
+
+        <!-- INTEGRATED INITIALIZATION OVERLAY (FAILSAFE, SINGLE HWND) -->
+        <Grid Grid.RowSpan="5" Background="#0F172A" Visibility="{Binding IsInitializing, Converter={StaticResource BoolToVis}}" Canvas.ZIndex="9999">
+            <Border Background="#1E293B" CornerRadius="14" BorderBrush="#38BDF8" BorderThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center" Width="540" Padding="28">
+                <Border.Effect>
+                    <DropShadowEffect Color="#0284C7" BlurRadius="30" ShadowDepth="0" Opacity="0.5"/>
+                </Border.Effect>
+                <StackPanel HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+                        <Image Source="pack://application:,,,/Resources/app_logo.png" Width="48" Height="48" Margin="0,0,14,0"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="⚡ POWER PLATFORM ENGINE" FontSize="20" FontWeight="Bold" Foreground="#38BDF8"/>
+                            <TextBlock Text="Productivity Suite &amp; Multi-Environment Comparator (.NET 9)" FontSize="12" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border Background="#0F172A" CornerRadius="8" Padding="16,12" BorderBrush="#334155" BorderThickness="1" Margin="0,0,0,14" Width="460">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SplashStatusText}" Foreground="#F8FAFC" FontSize="13" FontWeight="SemiBold" TextAlignment="Center" Margin="0,0,0,8"/>
+                            <ProgressBar Height="10" Minimum="0" Maximum="100" Value="{Binding SplashProgressValue}" Background="#1E293B" Foreground="#0284C7" BorderThickness="0"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <DockPanel LastChildFill="False">
+                        <TextBlock Text="v2.4.0 (Enterprise Resilient Edition)" Foreground="#64748B" FontSize="11" DockPanel.Dock="Left"/>
+                        <TextBlock Text="Powered by Microsoft Dataverse Web API" Foreground="#64748B" FontSize="11" DockPanel.Dock="Right"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
