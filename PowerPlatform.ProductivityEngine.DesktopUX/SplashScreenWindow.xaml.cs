@@ -44,6 +44,7 @@ namespace PowerPlatform.ProductivityEngine.DesktopUX
             await Task.Delay(200);
 
             var mainWindow = new MainWindow();
+            Application.Current.MainWindow = mainWindow;
             mainWindow.Show();
             Close();
         }
