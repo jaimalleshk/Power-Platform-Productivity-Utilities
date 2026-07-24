@@ -46,7 +46,8 @@ namespace PowerPlatform.ProductivityEngine.Core.Logging
                         Category TEXT,
                         Message TEXT,
                         ExceptionText TEXT
-                    );";
+                    );
+                    DELETE FROM ExecutionLogs WHERE Id NOT IN (SELECT Id FROM ExecutionLogs ORDER BY Id DESC LIMIT 10000);";
                 cmd.ExecuteNonQuery();
             }
             catch { }
